@@ -53,7 +53,8 @@ func webRTCJoin(inData map[string]interface{}, h handler, uid string, c *websock
 	}
 
 	h.WebRTCServer.JoinWebRTC <- webRTCserver.JoinWebRTC{
-		Uid: uid,
+		Uid:         uid,
+		StreamsInfo: data.StreamsInfo,
 	}
 
 	return nil
@@ -81,9 +82,10 @@ func webRTCSendingSignal(inData map[string]interface{}, h handler, uid string, c
 	}
 
 	h.WebRTCServer.SignalWebRTC <- webRTCserver.SignalWebRTC{
-		Signal: data.Signal,
-		ToUid:  data.Uid,
-		Uid:    uid,
+		Signal:      data.Signal,
+		ToUid:       data.Uid,
+		Uid:         uid,
+		StreamsInfo: data.StreamsInfo,
 	}
 
 	return nil
@@ -97,9 +99,10 @@ func webRTCReturningSignal(inData map[string]interface{}, h handler, uid string,
 	}
 
 	h.WebRTCServer.ReturnSignalWebRTC <- webRTCserver.ReturnSignalWebRTC{
-		Signal:   data.Signal,
-		CallerID: data.CallerID,
-		Uid:      uid,
+		Signal:      data.Signal,
+		CallerID:    data.CallerID,
+		Uid:         uid,
+		StreamsInfo: data.StreamsInfo,
 	}
 
 	return nil

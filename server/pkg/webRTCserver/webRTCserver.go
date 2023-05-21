@@ -5,6 +5,7 @@ import (
 
 	socketMessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
 	socketServer "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
+	socketValidation "github.com/web-stuff-98/go-react-vid-streams/pkg/socketValidation"
 )
 
 type WebRTCServer struct {
@@ -25,7 +26,8 @@ type Connections struct {
 // ------ Channels ------ //
 
 type JoinWebRTC struct {
-	Uid string
+	Uid         string
+	StreamsInfo []socketValidation.StreamInfo
 }
 
 type LeaveWebRTC struct {
@@ -33,15 +35,17 @@ type LeaveWebRTC struct {
 }
 
 type SignalWebRTC struct {
-	Signal string
-	ToUid  string
-	Uid    string
+	Signal      string
+	ToUid       string
+	Uid         string
+	StreamsInfo []socketValidation.StreamInfo
 }
 
 type ReturnSignalWebRTC struct {
-	Signal   string
-	CallerID string
-	Uid      string
+	Signal      string
+	CallerID    string
+	Uid         string
+	StreamsInfo []socketValidation.StreamInfo
 }
 
 func Init(ss *socketServer.SocketServer, rtcDC chan string) *WebRTCServer {
@@ -144,8 +148,9 @@ func sendWebRTCSignals(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			Uid:       data.ToUid,
 			EventName: "WEBRTC_JOINED_SIGNAL",
 			Data: socketMessages.WebRTCUserJoined{
-				CallerID: data.Uid,
-				Signal:   data.Signal,
+				CallerID:    data.Uid,
+				Signal:      data.Signal,
+				StreamsInfo: data.StreamsInfo,
 			},
 		}
 	}
@@ -159,8 +164,9 @@ func returningWebRTCSignals(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			Uid:       data.CallerID,
 			EventName: "WEBRTC_RETURN_SIGNAL_OUT",
 			Data: socketMessages.WebRTCReturnSignal{
-				Signal: data.Signal,
-				Uid:    data.Uid,
+				Signal:      data.Signal,
+				Uid:         data.Uid,
+				StreamsInfo: data.StreamsInfo,
 			},
 		}
 	}

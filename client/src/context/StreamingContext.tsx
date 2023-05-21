@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { makeRequest } from "../services/makeRequest";
 
+/*
+This handles streaming the users own streams to the server.
+Displaying all streams via WebRTC is done by Streams.tsx
+*/
+
 type StreamInfo = {
   stream: MediaStream;
   motion: boolean;

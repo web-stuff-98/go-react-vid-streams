@@ -10,12 +10,10 @@ type WebRTCJoinedSignal = {
   data: {
     signal: string;
     caller_id: string;
-  };
-};
-
-type WebRTCUserJoined = {
-  data: {
-    uid: string;
+    streams_info: {
+      media_stream_id: string;
+      name: string;
+    }[];
   };
 };
 
@@ -29,6 +27,10 @@ type WebRTCReturnSignalOut = {
   data: {
     uid: string;
     signal: string;
+    streams_info: {
+      media_stream_id: string;
+      name: string;
+    }[];
   };
 };
 
@@ -42,20 +44,19 @@ export function isChangeData(object: any): object is ChangeData {
   return object.event === "CHANGE";
 }
 
-export function webRTCJoinedSignal(object: any): object is WebRTCJoinedSignal {
+export function isWebRTCJoinedSignal(
+  object: any
+): object is WebRTCJoinedSignal {
   return object.event === "WEBRTC_JOINED_SIGNAL";
 }
-export function webRTCUserJoined(object: any): object is WebRTCUserJoined {
-  return object.event === "WEBRTC_USER_JOINED";
-}
-export function webRTCUserLeft(object: any): object is WebRTCUserLeft {
+export function isWebRTCUserLeft(object: any): object is WebRTCUserLeft {
   return object.event === "WEBRTC_USER_LEFT";
 }
-export function webRTCReturnSignalOut(
+export function isWebRTCReturnSignalOut(
   object: any
 ): object is WebRTCReturnSignalOut {
   return object.event === "WEBRTC_RETURN_SIGNAL_OUT";
 }
-export function webRTCAllUsers(object: any): object is WebRTCAllUsers {
+export function isWebRTCAllUsers(object: any): object is WebRTCAllUsers {
   return object.event === "WEBRTC_ALL_USERS";
 }

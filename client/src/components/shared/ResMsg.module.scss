@@ -7,4 +7,9 @@
   gap: var(--gap-sm);
   font-size: var(--md);
   font-weight: 600;
+
+  svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 }

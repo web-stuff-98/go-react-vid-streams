@@ -7,8 +7,10 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
+import { StreamersProvider } from "./context/StreamersContext";
 import { DeviceProvider } from "./context/DeviceContext";
 import { StreamingProvider } from "./context/StreamingContext";
+import { StreamsProvider } from "./context/StreamsContext";
 import Root from "./components/root/Root";
 import Home from "./components/routes/home/Home";
 import ServerLogin from "./components/routes/loginRegister/ServerLogin";
@@ -33,9 +35,13 @@ function App() {
     <DeviceProvider>
       <AuthProvider>
         <SocketProvider>
-          <StreamingProvider>
-            <RouterProvider router={router} />
-          </StreamingProvider>
+          <StreamersProvider>
+            <StreamingProvider>
+              <StreamsProvider>
+                <RouterProvider router={router} />
+              </StreamsProvider>
+            </StreamingProvider>
+          </StreamersProvider>
         </SocketProvider>
       </AuthProvider>
     </DeviceProvider>

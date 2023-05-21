@@ -10,7 +10,7 @@ export const StreamersContext = createContext<{
   streamers: {},
 });
 
-export const streamersProvider = ({ children }: { children: ReactNode }) => {
+export const StreamersProvider = ({ children }: { children: ReactNode }) => {
   const { socket } = useSocket();
 
   const [streamers, setStreamers] = useState<Record<string, string>>({});
