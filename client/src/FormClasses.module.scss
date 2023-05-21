@@ -1,0 +1,20 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+  padding: var(--gap-md);
+}
+
+.input-label {
+  gap: var(--gap-sm);
+  input,
+  select,
+  option,
+  label {
+    margin: 0;
+    text-align: left;
+  }
+  label {
+    font-weight: 600;
+  }
+}

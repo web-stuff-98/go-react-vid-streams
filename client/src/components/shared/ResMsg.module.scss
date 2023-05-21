@@ -1,0 +1,10 @@
+.res-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gap-md);
+  gap: var(--gap-sm);
+  font-size: var(--md);
+  font-weight: 600;
+}
