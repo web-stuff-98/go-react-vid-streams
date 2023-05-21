@@ -1,13 +1,14 @@
 import axios from "axios";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { makeRequest } from "../services/makeRequest";
 
 export const AuthContext = createContext<{
   uid: string;
   server: string;
   serverNoProtocol: string;
-  streamerLogin: (name: string, password: string) => Promise<void>;
-  streamerRegister: (name: string, password: string) => Promise<void>;
+  streamerLogin: (name: string) => Promise<void>;
+  streamerRegister: (name: string) => Promise<void>;
   serverLogin: (address: string, password: string) => Promise<void>;
 }>({
   uid: "",
@@ -27,40 +28,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [server]
   );
 
-  const streamerLogin = async (name: string, password: string) => {
-    const res = await axios({
+  const streamerLogin = async (name: string) => {
+    const data = await makeRequest({
       url: `${server}/api/auth/streamer/login`,
-      data: { name, password },
+      data: { name },
       method: "POST",
-      withCredentials: true,
     });
-    setUid(res.data);
+    setUid(data);
   };
 
-  const streamerRegister = async (name: string, password: string) => {
-    const res = await axios({
+  const streamerRegister = async (name: string) => {
+    const data = await makeRequest({
       url: `${server}/api/auth/streamer/register`,
-      data: { name, password },
+      data: { name },
       method: "POST",
-      withCredentials: true,
     });
-    setUid(res.data);
+    setUid(data);
   };
 
   const serverLogin = async (address: string, password: string) => {
-    await axios({
+    await makeRequest({
       url: `${address}/api/auth/login`,
       data: { password },
       method: "POST",
-      withCredentials: true,
     });
     setServer(address);
   };
 
   const refreshIntervalFunc = async () => {
-    await axios({
+    await makeRequest({
       url: `${server}/api/auth/refresh`,
-      withCredentials: true,
       method: "POST",
     });
   };

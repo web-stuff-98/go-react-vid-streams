@@ -8,6 +8,7 @@ export default function ResMsg({ msg }: { msg: IResMsg }) {
     <div className={styles["res-msg"]}>
       {msg.pen && <FaSpinner />}
       {msg.err && <BiError />}
+      {msg.msg}
     </div>
   ) : (
     <></>

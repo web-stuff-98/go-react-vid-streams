@@ -6,8 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE streamers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(24) NOT NULL,
-    password VARCHAR(128) NOT NULL
+    name VARCHAR(24) NOT NULL
 );
 
 CREATE TABLE vid_meta (

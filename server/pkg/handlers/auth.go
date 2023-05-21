@@ -17,7 +17,7 @@ import (
 
 func (h handler) StreamerLogin(ctx *fiber.Ctx) error {
 	v := validator.New()
-	body := &validation.StreamerLogin{}
+	body := &validation.StreamerLoginRegister{}
 	if err := json.Unmarshal(ctx.Body(), &body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
 	}
@@ -34,32 +34,19 @@ func (h handler) StreamerLogin(ctx *fiber.Ctx) error {
 	}
 	defer conn.Release()
 
-	stmt, err := conn.Conn().Prepare(rctx, "login_stmt", `
-	SELECT id,password FROM streamers WHERE LOWER(name) = LOWER($1);
+	stmt, err := conn.Conn().Prepare(rctx, "streamer_login_stmt", `
+	SELECT id FROM streamers WHERE LOWER(name) = LOWER($1);
 	`)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 
-	var id, hash string
-	if err = conn.QueryRow(rctx, stmt.Name, strings.TrimSpace(body.Name)).Scan(&id, &hash); err != nil {
+	var id string
+	if err = conn.QueryRow(rctx, stmt.Name, strings.TrimSpace(body.Name)).Scan(&id); err != nil {
 		if err == pgx.ErrNoRows {
 			return fiber.NewError(fiber.StatusNotFound, "Not found")
 		} else {
 			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-		}
-	}
-	if os.Getenv("ENVIRONMENT") == "PRODUCTION" {
-		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(body.Password)); err != nil {
-			if err == bcrypt.ErrMismatchedHashAndPassword {
-				return fiber.NewError(fiber.StatusUnauthorized, "Invalid credentials")
-			} else {
-				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-			}
-		}
-	} else {
-		if body.Password != hash {
-			return fiber.NewError(fiber.StatusUnauthorized, "Invalid credentials")
 		}
 	}
 
@@ -77,16 +64,12 @@ func (h handler) StreamerLogin(ctx *fiber.Ctx) error {
 
 func (h handler) StreamerRegister(ctx *fiber.Ctx) error {
 	v := validator.New()
-	body := &validation.StreamerRegister{}
+	body := &validation.StreamerLoginRegister{}
 	if err := json.Unmarshal(ctx.Body(), &body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
 	}
 	if err := v.Struct(body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
-	}
-
-	if !authHelpers.PasswordValidates(body.Password) {
-		return fiber.NewError(fiber.StatusBadRequest, "Password does not meet requirements")
 	}
 
 	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
@@ -112,38 +95,20 @@ func (h handler) StreamerRegister(ctx *fiber.Ctx) error {
 		}
 	}
 	if exists {
-		return fiber.NewError(fiber.StatusBadRequest, "There is already another user using that name")
+		return fiber.NewError(fiber.StatusBadRequest, "There is already another streamer with that name")
 	}
 
 	var id string
 
-	// dont hash passwords in development mode, because it doesn't work with CGO and I need to use the -race flag to debug
-	if os.Getenv("ENVIRONMENT") == "PRODUCTION" {
-		if hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 14); err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-		} else {
-			insertStmt, err := conn.Conn().Prepare(rctx, "register_insert_stmt", `
-			INSERT INTO streamers (name, password) VALUES ($1, $2) RETURNING id;
-			`)
-			if err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-			}
+	insertStmt, err := conn.Conn().Prepare(rctx, "register_streamer_insert_stmt", `
+		INSERT INTO streamers (name) VALUES ($1) RETURNING id;
+	`)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
 
-			if err := conn.QueryRow(rctx, insertStmt.Name, body.Name, string(hash)).Scan(&id); err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-			}
-		}
-	} else {
-		insertStmt, err := conn.Conn().Prepare(rctx, "register_insert_nohash_stmt", `
-		INSERT INTO streamers (name, password) VALUES ($1, $2) RETURNING id;
-		`)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-		}
-
-		if err := conn.QueryRow(rctx, insertStmt.Name, body.Name, body.Password).Scan(&id); err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
-		}
+	if err := conn.QueryRow(rctx, insertStmt.Name, body.Name).Scan(&id); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 
 	if cookie, err := authHelpers.AuthorizeStreamer(h.RedisClient, rctx, id); err != nil {

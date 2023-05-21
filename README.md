@@ -1,10 +1,12 @@
 # go-react-vid-streams
 
-## This is an unfinished generic "motion detection security camera streaming app" where you connect different devices to a password protected server and record video streams. It's supposed to be run on a local network.
+## This is an unfinished generic "motion detection security camera streaming app" where you connect different devices to a password protected server and record video streams
 
 ### Currently video streaming, motion detection and video downloads work, other things haven't been implemented yet
 
-### I am not sure if "streamers" should be individually password protected or if it should just be the server on its own which has password access
+When you are logged into the server, you don't need a password to login/register streamers.
+
+When it is done there will be a seperate client and server app. The server exe will have command line arguments for the server password. Clients will connect to the server and add their media streams, where all media streams will be visible on the homepage, with a download button for downloading the footage up to the current point where motion was detected.
 
 #### Todos:
 

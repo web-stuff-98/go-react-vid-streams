@@ -1,12 +1,13 @@
-import axios from "axios";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
+import { makeRequest } from "../services/makeRequest";
 
 type StreamInfo = {
   stream: MediaStream;
   motion: boolean;
   lastFrame?: ImageData;
+  deviceId: string;
 };
 
 export const StreamingContext = createContext<{
@@ -26,12 +27,15 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
   const [recorders, setRecorders] = useState<Record<string, MediaRecorder>>({});
 
   const addStream = async (name: string, deviceId: string) => {
+    if (streams[name]) throw new Error("There's a stream by that name already");
+    if (Object.values(streams).find((s) => s.deviceId === deviceId))
+      throw new Error("You're already streaming from the selected device");
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { deviceId },
     });
     setStreams((s) => ({
       ...s,
-      [name]: { stream, motion: false },
+      [name]: { stream, motion: false, deviceId },
     }));
   };
 
@@ -66,6 +70,8 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const motionDetectionInterval = setInterval(async () => {
       for await (const name of Object.keys(streams)) {
+        let motionDetected = false;
+
         const currentFrameData = getImageData(name);
 
         // compare the last frame (if it's present) to the current frame
@@ -86,14 +92,16 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             pixelDiffs.push((rPixelDiff + gPixelDiff + bPixelDiff) / 3);
           }
 
-          const averagePixelDiff =
+          motionDetected =
             pixelDiffs.reduce((acc, val) => acc + val, 0) /
-            (currentFrameData.width * currentFrameData.height);
+              (currentFrameData.width * currentFrameData.height) >
+            5;
         }
 
         setStreams((s) => {
           const newStreams = s;
           newStreams[name].lastFrame = currentFrameData;
+          newStreams[name].motion = motionDetected;
           return { ...newStreams };
         });
       }
@@ -115,15 +123,16 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             mimeType: "video/webm",
           });
           recorder.addEventListener("dataavailable", async (e) => {
-            await axios({
-              url: `${server}/api/video/chunk?name=${name}`,
-              withCredentials: true,
-              method: "POST",
-              headers: {
-                "Content-Type": "video/webm",
-              },
-              data: e.data,
-            });
+            if (streams[name].motion)
+              await makeRequest({
+                url: `${server}/api/video/chunk?name=${name}`,
+                withCredentials: true,
+                method: "POST",
+                headers: {
+                  "Content-Type": "video/webm",
+                },
+                data: e.data,
+              });
           });
           recorder.start(1000);
           setRecorders((r) => ({ ...r, [name]: recorder }));

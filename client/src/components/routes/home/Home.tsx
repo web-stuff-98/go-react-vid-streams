@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
 import styles from "./Home.module.scss";
-import { IResMsg } from "../../../interfaces/GeneralInterfaces";
-import axios from "axios";
-import ResMsg from "../../shared/ResMsg";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { FaDownload } from "react-icons/fa";
 import { useStreaming } from "../../../context/StreamingContext";
+import { IResMsg } from "../../../interfaces/GeneralInterfaces";
+import axios from "axios";
+import ResMsg from "../../shared/ResMsg";
+import { makeRequest } from "../../../services/makeRequest";
 
 function VideoDownloadButton({ name }: { name: string }) {
   const { server } = useAuth();
@@ -43,10 +44,9 @@ export default function Home() {
   const getStreams = async () => {
     try {
       setResMsg({ pen: true });
-      const { data: names } = await axios({
+      const names = await makeRequest({
         method: "GET",
         url: `${server}/api/videos`,
-        withCredentials: true,
       });
       setVideoNames(names || []);
       setResMsg({ pen: false });
@@ -67,6 +67,7 @@ export default function Home() {
             {streams[name] && <VideoStream stream={streams[name].stream} />}
             <div>
               {name}
+              {streams[name].motion && <> - Motion detected</>}
               <VideoDownloadButton name={name} />
             </div>
           </li>

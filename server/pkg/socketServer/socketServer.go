@@ -11,6 +11,7 @@ type SocketServer struct {
 
 	SendData      chan SendData
 	SendDataMulti chan SendDataMulti
+	SendDataToAll chan SendDataToAll
 
 	RegisterConn   chan ConnectionData
 	UnregisterConn chan *websocket.Conn
@@ -30,9 +31,9 @@ type SendDataMulti struct {
 	EventName string
 }
 
-type ConnectionData struct {
-	Uid  string
-	Conn *websocket.Conn
+type SendDataToAll struct {
+	Data      map[string]interface{}
+	EventName string
 }
 
 // ------ Mutex protected ------ //
@@ -40,6 +41,13 @@ type ConnectionData struct {
 type Connections struct {
 	data  map[*websocket.Conn]string
 	mutex sync.RWMutex
+}
+
+// ------ General structs ------ //
+
+type ConnectionData struct {
+	Uid  string
+	Conn *websocket.Conn
 }
 
 func Init() *SocketServer {
@@ -50,6 +58,7 @@ func Init() *SocketServer {
 
 		SendData:      make(chan SendData),
 		SendDataMulti: make(chan SendDataMulti),
+		SendDataToAll: make(chan SendDataToAll),
 
 		RegisterConn:   make(chan ConnectionData),
 		UnregisterConn: make(chan *websocket.Conn),
@@ -61,6 +70,7 @@ func Init() *SocketServer {
 func runServer(ss *SocketServer) {
 	go sendData(ss)
 	go sendDataMulti(ss)
+	go sendDataToAll(ss)
 	go registerConn(ss)
 	go unregisterConn(ss)
 }
@@ -89,6 +99,23 @@ func sendDataMulti(ss *SocketServer) {
 				EventName: data.EventName,
 			}
 		}
+	}
+}
+
+func sendDataToAll(ss *SocketServer) {
+	for {
+		data := <-ss.SendDataToAll
+
+		outMsg := data.Data
+		outMsg["event"] = data.EventName
+
+		ss.Connections.mutex.Lock()
+
+		for c := range ss.Connections.data {
+			c.WriteJSON(outMsg)
+		}
+
+		ss.Connections.mutex.Unlock()
 	}
 }
 

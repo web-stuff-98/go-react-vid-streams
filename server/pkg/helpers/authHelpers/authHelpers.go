@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lucsky/cuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -41,8 +41,9 @@ func GetClearedCookie() *fiber.Cookie {
 	}
 }
 
+// not being used - streamers don't have password anymore
 // copied the regex from some stack overflow post. Same validation as with client.
-func PasswordValidates(pass string) bool {
+/*func PasswordValidates(pass string) bool {
 	count := 0
 	if 8 <= len(pass) && len(pass) <= 72 {
 		if matched, _ := regexp.MatchString(".*\\d.*", pass); matched {
@@ -59,7 +60,7 @@ func PasswordValidates(pass string) bool {
 		}
 	}
 	return count >= 3
-}
+}*/
 
 // Creates the session ID on redis and encodes it as a JWT into a cookie
 func AuthorizeStreamer(redisClient *redis.Client, ctx context.Context, uid string) (*fiber.Cookie, error) {
@@ -98,7 +99,10 @@ func AuthorizeServerLogin(redisClient *redis.Client, ctx context.Context) (*fibe
 	}
 	cookie := createCookie(token, time.Now().Add(sessionDuration))
 
-	cmd := redisClient.Set(ctx, sid.String(), "", sessionDuration)
+	// When logging into the server assign a random uid, since if it's just left blank then
+	// there's no way to get webRTC to work until the client logs into a streamer and gets a real ID
+	randomId := cuid.New()
+	cmd := redisClient.Set(ctx, sid.String(), randomId, sessionDuration)
 	if cmd.Err() != nil {
 		log.Fatalln("Redis error in Authorize helper function:", cmd.Err())
 	}

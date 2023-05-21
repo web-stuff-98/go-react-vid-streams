@@ -11,19 +11,15 @@ export default function StreamerRegister() {
 
   const [resMsg, setResMsg] = useState<IResMsg>({});
   const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
 
   const handleName = (e: ChangeEvent) =>
     setName((e.target as HTMLInputElement).value);
-
-  const handlePassword = (e: ChangeEvent) =>
-    setPassword((e.target as HTMLInputElement).value);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     try {
       setResMsg({ pen: true });
-      await streamerRegister(name, password);
+      await streamerRegister(name);
       setResMsg({ pen: false });
     } catch (e) {
       setResMsg({ err: true, msg: `${e}` });
@@ -36,10 +32,6 @@ export default function StreamerRegister() {
         <div className={formStyles["input-label"]}>
           <label htmlFor="name">Name</label>
           <input onChange={handleName} id="name" type="text" required />
-        </div>
-        <div className={formStyles["input-label"]}>
-          <label htmlFor="password">Password</label>
-          <input onChange={handlePassword} id="password" type="password" />
         </div>
         <button type="submit">Add streamer</button>
         <ResMsg msg={resMsg} />
