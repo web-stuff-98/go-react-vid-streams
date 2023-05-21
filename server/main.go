@@ -11,8 +11,9 @@ import (
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/db"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/handlers"
 	rdb "github.com/web-stuff-98/go-react-vid-streams/pkg/redis"
-	socketserver "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
-	videoserver "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
+	socketServer "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
+	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
+	webRTCserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
 )
 
 func main() {
@@ -23,9 +24,10 @@ func main() {
 	app := fiber.New()
 	db := db.Init()
 	rd := rdb.Init()
-	vs := videoserver.Init(db)
-	ss := socketserver.Init()
-	h := handlers.New(vs, db, rd, ss)
+	vs := videoServer.Init(db)
+	ss := socketServer.Init()
+	rtc := webRTCserver.Init(ss)
+	h := handlers.New(vs, db, rd, ss, rtc)
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:5173",

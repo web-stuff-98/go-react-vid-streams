@@ -3,6 +3,7 @@ package webrtcserver
 import (
 	"sync"
 
+	socketmessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
 	socketserver "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
 )
 
@@ -60,6 +61,7 @@ func Init(ss *socketserver.SocketServer) *WebRTCServer {
 func runServer(rtc *WebRTCServer, ss *socketserver.SocketServer) {
 	go joinWebRTC(rtc, ss)
 	go leaveWebRTC(rtc, ss)
+	go sendWebRTCSignals(rtc, ss)
 }
 
 func joinWebRTC(rtc *WebRTCServer, ss *socketserver.SocketServer) {
@@ -83,5 +85,20 @@ func leaveWebRTC(rtc *WebRTCServer, ss *socketserver.SocketServer) {
 		delete(rtc.Connections.data, data.Uid)
 
 		rtc.Connections.mutex.Unlock()
+	}
+}
+
+func sendWebRTCSignals(rtc *WebRTCServer, ss *socketserver.SocketServer) {
+	for {
+		data := <-rtc.SignalWebRTC
+
+		ss.SendDataToUid <- socketserver.SendDataToUid{
+			Uid:       data.ToUid,
+			EventName: "WEBRTC_JOINED",
+			Data: socketmessages.WebRTCUserJoined{
+				CallerID: data.Uid,
+				Signal:   data.Signal,
+			},
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/gofiber/websocket/v2"
@@ -10,8 +11,11 @@ type SocketServer struct {
 	Connections Connections
 
 	SendData      chan SendData
+	SendDataToUid chan SendDataToUid
 	SendDataMulti chan SendDataMulti
 	SendDataToAll chan SendDataToAll
+
+	MessageLoop chan Message
 
 	RegisterConn   chan ConnectionData
 	UnregisterConn chan *websocket.Conn
@@ -19,20 +23,31 @@ type SocketServer struct {
 
 // ------ Channels ------ //
 
+type Message struct {
+	Conn *websocket.Conn
+	Data []byte
+}
+
 type SendData struct {
-	Data      map[string]interface{}
+	Data      interface{}
 	Conn      *websocket.Conn
 	EventName string
 }
 
+type SendDataToUid struct {
+	Data      interface{}
+	Uid       string
+	EventName string
+}
+
 type SendDataMulti struct {
-	Data      map[string]interface{}
+	Data      interface{}
 	Conns     map[*websocket.Conn]struct{}
 	EventName string
 }
 
 type SendDataToAll struct {
-	Data      map[string]interface{}
+	Data      interface{}
 	EventName string
 }
 
@@ -57,6 +72,7 @@ func Init() *SocketServer {
 		},
 
 		SendData:      make(chan SendData),
+		SendDataToUid: make(chan SendDataToUid),
 		SendDataMulti: make(chan SendDataMulti),
 		SendDataToAll: make(chan SendDataToAll),
 
@@ -71,20 +87,60 @@ func runServer(ss *SocketServer) {
 	go sendData(ss)
 	go sendDataMulti(ss)
 	go sendDataToAll(ss)
+	go messageLoop(ss)
 	go registerConn(ss)
 	go unregisterConn(ss)
 }
 
+func WriteMessage(t string, m interface{}, c *websocket.Conn, ss *SocketServer) {
+	withType := make(map[string]interface{})
+	withType["event_type"] = t
+	withType["data"] = m
+
+	if c == nil {
+		return
+	}
+
+	if b, err := json.Marshal(withType); err == nil {
+		ss.MessageLoop <- Message{
+			Conn: c,
+			Data: b,
+		}
+	}
+}
+
 // ------ Loops ------ //
+
+func messageLoop(ss *SocketServer) {
+	for {
+		data := <-ss.MessageLoop
+
+		data.Conn.WriteMessage(1, data.Data)
+	}
+}
 
 func sendData(ss *SocketServer) {
 	for {
 		data := <-ss.SendData
 
-		outMsg := data.Data
-		outMsg["event"] = data.EventName
+		WriteMessage(data.EventName, data.Data, data.Conn, ss)
+	}
+}
 
-		data.Conn.WriteJSON(outMsg)
+func sendDataToUid(ss *SocketServer) {
+	for {
+		data := <-ss.SendDataToUid
+
+		ss.Connections.mutex.Lock()
+
+		for conn, uid := range ss.Connections.data {
+			if uid == data.Uid {
+				WriteMessage(data.EventName, data.Data, conn, ss)
+				break
+			}
+		}
+
+		ss.Connections.mutex.Unlock()
 	}
 }
 
@@ -106,13 +162,10 @@ func sendDataToAll(ss *SocketServer) {
 	for {
 		data := <-ss.SendDataToAll
 
-		outMsg := data.Data
-		outMsg["event"] = data.EventName
-
 		ss.Connections.mutex.Lock()
 
 		for c := range ss.Connections.data {
-			c.WriteJSON(outMsg)
+			WriteMessage(data.EventName, data.Data, c, ss)
 		}
 
 		ss.Connections.mutex.Unlock()
