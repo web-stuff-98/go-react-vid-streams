@@ -1,13 +1,13 @@
 package socketmessages
 
-// TYPE: WEBRTC_JOINED
+// TYPE: WEBRTC_JOINED_SIGNAL
 type WebRTCUserJoined struct {
 	Signal   string `json:"signal"`
 	CallerID string `json:"caller_id"`
 }
 
-// TYPE: WEBRTC_LEFT
-type WebRTCUserLeft struct {
+// TYPE: WEBRTC_USER_LEFT/WEBRTC_USER_JOINED
+type WebRTCUserJoinedLeft struct {
 	Uid string `json:"uid"`
 }
 

@@ -3,8 +3,8 @@ package webrtcserver
 import (
 	"sync"
 
-	socketmessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
-	socketserver "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
+	socketMessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
+	socketServer "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
 )
 
 type WebRTCServer struct {
@@ -44,7 +44,7 @@ type ReturnSignalWebRTC struct {
 	Uid      string
 }
 
-func Init(ss *socketserver.SocketServer) *WebRTCServer {
+func Init(ss *socketServer.SocketServer, rtcDC chan string) *WebRTCServer {
 	rtc := &WebRTCServer{
 		Connections: Connections{
 			data: make(map[string]struct{}),
@@ -54,21 +54,53 @@ func Init(ss *socketserver.SocketServer) *WebRTCServer {
 		SignalWebRTC:       make(chan SignalWebRTC),
 		ReturnSignalWebRTC: make(chan ReturnSignalWebRTC),
 	}
-	runServer(rtc, ss)
+	runServer(rtc, ss, rtcDC)
 	return rtc
 }
 
-func runServer(rtc *WebRTCServer, ss *socketserver.SocketServer) {
+func runServer(rtc *WebRTCServer, ss *socketServer.SocketServer, rtcDC chan string) {
 	go joinWebRTC(rtc, ss)
 	go leaveWebRTC(rtc, ss)
 	go sendWebRTCSignals(rtc, ss)
+	go watchForSocketDisconnect(rtc, rtcDC)
 }
 
-func joinWebRTC(rtc *WebRTCServer, ss *socketserver.SocketServer) {
+func watchForSocketDisconnect(rtc *WebRTCServer, rtcDC chan string) {
+	for {
+		uid := <-rtcDC
+		rtc.LeaveWebRTC <- LeaveWebRTC{
+			Uid: uid,
+		}
+	}
+}
+
+func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 	for {
 		data := <-rtc.JoinWebRTC
 
 		rtc.Connections.mutex.Lock()
+
+		uids := []socketMessages.WebRTCOutUser{}
+		for uid := range rtc.Connections.data {
+			uids = append(uids, socketMessages.WebRTCOutUser{
+				Uid: uid,
+			})
+		}
+
+		ss.SendDataToAll <- socketServer.SendDataToAll{
+			Data: socketMessages.WebRTCUserJoinedLeft{
+				Uid: data.Uid,
+			},
+			EventName: "WEBRTC_USER_JOINED",
+		}
+
+		ss.SendDataToUid <- socketServer.SendDataToUid{
+			Uid: data.Uid,
+			Data: socketMessages.WebRTCAllUsers{
+				Users: uids,
+			},
+			EventName: "WEBRTC_ALL_USERS",
+		}
 
 		rtc.Connections.data[data.Uid] = struct{}{}
 
@@ -76,11 +108,26 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketserver.SocketServer) {
 	}
 }
 
-func leaveWebRTC(rtc *WebRTCServer, ss *socketserver.SocketServer) {
+func leaveWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 	for {
 		data := <-rtc.LeaveWebRTC
 
 		rtc.Connections.mutex.Lock()
+
+		uids := make(map[string]struct{})
+		for uid := range rtc.Connections.data {
+			if uid != data.Uid {
+				uids[uid] = struct{}{}
+			}
+		}
+
+		ss.SendDataToUids <- socketServer.SendDataToUids{
+			Uids: uids,
+			Data: socketMessages.WebRTCUserJoinedLeft{
+				Uid: data.Uid,
+			},
+			EventName: "WEBRTC_USER_LEFT",
+		}
 
 		delete(rtc.Connections.data, data.Uid)
 
@@ -88,16 +135,31 @@ func leaveWebRTC(rtc *WebRTCServer, ss *socketserver.SocketServer) {
 	}
 }
 
-func sendWebRTCSignals(rtc *WebRTCServer, ss *socketserver.SocketServer) {
+func sendWebRTCSignals(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 	for {
 		data := <-rtc.SignalWebRTC
 
-		ss.SendDataToUid <- socketserver.SendDataToUid{
+		ss.SendDataToUid <- socketServer.SendDataToUid{
 			Uid:       data.ToUid,
-			EventName: "WEBRTC_JOINED",
-			Data: socketmessages.WebRTCUserJoined{
+			EventName: "WEBRTC_JOINED_SIGNAL",
+			Data: socketMessages.WebRTCUserJoined{
 				CallerID: data.Uid,
 				Signal:   data.Signal,
+			},
+		}
+	}
+}
+
+func returningWebRTCSignals(rtc *WebRTCServer, ss *socketServer.SocketServer) {
+	for {
+		data := <-rtc.ReturnSignalWebRTC
+
+		ss.SendDataToUid <- socketServer.SendDataToUid{
+			Uid:       data.CallerID,
+			EventName: "WEBRTC_RETURN_SIGNAL_OUT",
+			Data: socketMessages.WebRTCReturnSignal{
+				Signal: data.Signal,
+				Uid:    data.Uid,
 			},
 		}
 	}

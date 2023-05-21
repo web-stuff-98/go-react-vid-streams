@@ -10,10 +10,11 @@ import (
 type SocketServer struct {
 	Connections Connections
 
-	SendData      chan SendData
-	SendDataToUid chan SendDataToUid
-	SendDataMulti chan SendDataMulti
-	SendDataToAll chan SendDataToAll
+	SendData        chan SendData
+	SendDataToUid   chan SendDataToUid
+	SendDataToUids  chan SendDataToUids
+	SendDataToConns chan SendDataToConns
+	SendDataToAll   chan SendDataToAll
 
 	MessageLoop chan Message
 
@@ -40,7 +41,13 @@ type SendDataToUid struct {
 	EventName string
 }
 
-type SendDataMulti struct {
+type SendDataToUids struct {
+	Data      interface{}
+	Uids      map[string]struct{}
+	EventName string
+}
+
+type SendDataToConns struct {
 	Data      interface{}
 	Conns     map[*websocket.Conn]struct{}
 	EventName string
@@ -65,31 +72,33 @@ type ConnectionData struct {
 	Conn *websocket.Conn
 }
 
-func Init() *SocketServer {
+func Init(rtcDC chan string) *SocketServer {
 	ss := &SocketServer{
 		Connections: Connections{
 			data: make(map[*websocket.Conn]string),
 		},
 
-		SendData:      make(chan SendData),
-		SendDataToUid: make(chan SendDataToUid),
-		SendDataMulti: make(chan SendDataMulti),
-		SendDataToAll: make(chan SendDataToAll),
+		SendData:        make(chan SendData),
+		SendDataToUid:   make(chan SendDataToUid),
+		SendDataToUids:  make(chan SendDataToUids),
+		SendDataToConns: make(chan SendDataToConns),
+		SendDataToAll:   make(chan SendDataToAll),
 
 		RegisterConn:   make(chan ConnectionData),
 		UnregisterConn: make(chan *websocket.Conn),
 	}
-	runServer(ss)
+	runServer(ss, rtcDC)
 	return ss
 }
 
-func runServer(ss *SocketServer) {
+func runServer(ss *SocketServer, rtcDC chan string) {
 	go sendData(ss)
 	go sendDataMulti(ss)
+	go sendDataToUids(ss)
 	go sendDataToAll(ss)
 	go messageLoop(ss)
 	go registerConn(ss)
-	go unregisterConn(ss)
+	go unregisterConn(ss, rtcDC)
 }
 
 func WriteMessage(t string, m interface{}, c *websocket.Conn, ss *SocketServer) {
@@ -144,9 +153,27 @@ func sendDataToUid(ss *SocketServer) {
 	}
 }
 
+func sendDataToUids(ss *SocketServer) {
+	for {
+		data := <-ss.SendDataToUids
+
+		ss.Connections.mutex.Lock()
+
+		for k := range data.Uids {
+			for c, uid := range ss.Connections.data {
+				if uid == k {
+					WriteMessage(data.EventName, data.Data, c, ss)
+				}
+			}
+		}
+
+		ss.Connections.mutex.Unlock()
+	}
+}
+
 func sendDataMulti(ss *SocketServer) {
 	for {
-		data := <-ss.SendDataMulti
+		data := <-ss.SendDataToConns
 
 		for c := range data.Conns {
 			ss.SendData <- SendData{
@@ -184,11 +211,15 @@ func registerConn(ss *SocketServer) {
 	}
 }
 
-func unregisterConn(ss *SocketServer) {
+func unregisterConn(ss *SocketServer, rtcDC chan string) {
 	for {
 		conn := <-ss.UnregisterConn
 
 		ss.Connections.mutex.Lock()
+
+		if uid, ok := ss.Connections.data[conn]; ok {
+			rtcDC <- uid
+		}
 
 		delete(ss.Connections.data, conn)
 

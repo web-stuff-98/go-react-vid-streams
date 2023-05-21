@@ -25,8 +25,9 @@ func main() {
 	db := db.Init()
 	rd := rdb.Init()
 	vs := videoServer.Init(db)
-	ss := socketServer.Init()
-	rtc := webRTCserver.Init(ss)
+	rtcDC := make(chan string)
+	ss := socketServer.Init(rtcDC)
+	rtc := webRTCserver.Init(ss, rtcDC)
 	h := handlers.New(vs, db, rd, ss, rtc)
 
 	app.Use(cors.New(cors.Config{
