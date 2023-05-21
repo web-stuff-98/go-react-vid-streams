@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v5"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/helpers/authHelpers"
-	videoserver "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
+	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
 )
 
 func (h handler) StreamVideoPlayback(ctx *fiber.Ctx) error {
@@ -237,7 +237,7 @@ func (h handler) HandleChunk(ctx *fiber.Ctx) error {
 	}
 
 	errorChan := make(chan error, 1)
-	h.VideoServer.HandleChunk <- videoserver.HandleChunk{
+	h.VideoServer.HandleChunk <- videoServer.HandleChunk{
 		Data:      data,
 		Name:      streamName,
 		Uid:       uid,
