@@ -103,7 +103,7 @@ func runServer(ss *SocketServer, rtcDC chan string) {
 
 func WriteMessage(t string, m interface{}, c *websocket.Conn, ss *SocketServer) {
 	withType := make(map[string]interface{})
-	withType["event_type"] = t
+	withType["event"] = t
 	withType["data"] = m
 
 	if c == nil {

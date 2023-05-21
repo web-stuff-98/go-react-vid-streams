@@ -62,6 +62,7 @@ func runServer(rtc *WebRTCServer, ss *socketServer.SocketServer, rtcDC chan stri
 	go joinWebRTC(rtc, ss)
 	go leaveWebRTC(rtc, ss)
 	go sendWebRTCSignals(rtc, ss)
+	go returningWebRTCSignals(rtc, ss)
 	go watchForSocketDisconnect(rtc, rtcDC)
 }
 
