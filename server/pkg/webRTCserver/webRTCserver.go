@@ -1,6 +1,7 @@
 package webrtcserver
 
 import (
+	"log"
 	"sync"
 
 	socketMessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
@@ -92,12 +93,22 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			})
 		}
 
-		ss.SendDataToAll <- socketServer.SendDataToAll{
+		uidsMap := make(map[string]struct{})
+		for _, wru := range uids {
+			uidsMap[wru.Uid] = struct{}{}
+		}
+
+		log.Printf("Sent to channel")
+
+		ss.SendDataToUids <- socketServer.SendDataToUids{
+			Uids: uidsMap,
 			Data: socketMessages.WebRTCUserJoinedLeft{
 				Uid: data.Uid,
 			},
 			EventName: "WEBRTC_USER_JOINED",
 		}
+
+		log.Printf("Success")
 
 		ss.SendDataToUid <- socketServer.SendDataToUid{
 			Uid: data.Uid,
@@ -106,6 +117,10 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			},
 			EventName: "WEBRTC_ALL_USERS",
 		}
+
+		log.Printf("Success")
+
+		log.Printf("User joined - all users: %v", uids)
 
 		rtc.Connections.data[data.Uid] = struct{}{}
 

@@ -23,7 +23,6 @@ type VideoServer struct {
 // ------ Mutex locked ------ //
 type Streamers struct {
 	// outer map key is streamer uid, inner map key is stream name.
-	// waitgroup is used to wait for chunks being written to complete
 	data  map[string]map[string]*sync.WaitGroup
 	mutex sync.RWMutex
 }

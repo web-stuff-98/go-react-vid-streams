@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { makeRequest } from "../services/makeRequest";
+import useSocket from "./SocketContext";
 
 /*
 This handles streaming the users own streams to the server.
@@ -27,9 +28,26 @@ export const StreamingContext = createContext<{
 
 export const StreamingProvider = ({ children }: { children: ReactNode }) => {
   const { server } = useAuth();
+  const { sendIfPossible } = useSocket();
 
   const [streams, setStreams] = useState<Record<string, StreamInfo>>({});
   const [recorders, setRecorders] = useState<Record<string, MediaRecorder>>({});
+
+  const rejoinWebRTC = () => {
+    sendIfPossible({
+      event: "WEBRTC_LEAVE",
+      data: {},
+    });
+    sendIfPossible({
+      event: "WEBRTC_JOIN",
+      data: {
+        streams_info: Object.keys(streams).map((k) => ({
+          name: k,
+          media_stream_id: streams[k].stream.id,
+        })),
+      },
+    });
+  };
 
   const addStream = async (name: string, deviceId: string) => {
     if (streams[name]) throw new Error("There's a stream by that name already");
@@ -48,12 +66,12 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
     setStreams((s) => {
       const newStreams = s;
       delete newStreams[name];
-      return newStreams;
+      return { ...newStreams };
     });
     setRecorders((r) => {
       const newRecorders = r;
       delete newRecorders[name];
-      return newRecorders;
+      return { ...newRecorders };
     });
   };
 
@@ -111,6 +129,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
         });
       }
     }, 300);
+    rejoinWebRTC();
     return () => {
       clearInterval(motionDetectionInterval);
     };
@@ -152,7 +171,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
     <StreamingContext.Provider value={{ streams, addStream, removeStream }}>
       {children}
       {Object.keys(streams).map((k) => (
-        <HiddenVideoWindow stream={streams[k].stream} name={k} />
+        <HiddenVideoWindow key={k} stream={streams[k].stream} name={k} />
       ))}
     </StreamingContext.Provider>
   );

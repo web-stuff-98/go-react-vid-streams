@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 
@@ -13,7 +13,7 @@ export const SocketContext = createContext<{
 });
 
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
-  const { serverNoProtocol } = useAuth();
+  const { serverNoProtocol, uid } = useAuth();
 
   const [socket, setSocket] = useState<WebSocket>();
 
@@ -25,10 +25,32 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
   const connect = () =>
     new Promise<void>((r) => {
-      const ws = new WebSocket(`ws://${serverNoProtocol}`);
+      const ws = new WebSocket(
+        `ws${
+          process.env.NODE_ENV === "production" ? "s" : ""
+        }://${serverNoProtocol}/api/ws`
+      );
+      setTimeout(
+        () =>
+          ws.send(
+            JSON.stringify({
+              event: "WEBRTC_JOIN",
+              data: {
+                streams_info: [],
+              },
+            })
+          ),
+        1000
+      );
       setSocket(ws);
       r();
     });
+
+  useEffect(() => {
+    if ((serverNoProtocol && !uid) || uid) {
+      connect();
+    }
+  }, [serverNoProtocol, uid]);
 
   return (
     <SocketContext.Provider value={{ socket, connect, sendIfPossible }}>

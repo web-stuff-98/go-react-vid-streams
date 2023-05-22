@@ -47,5 +47,8 @@ func main() {
 	app.Post("/api/auth/streamer/logout", h.StreamerLogout)
 	app.Post("/api/auth/streamer/register", h.StreamerRegister)
 
+	app.Use("/api/ws", h.WebSocketAuth)
+	app.Get("/api/ws", h.WebSocketHandler())
+
 	log.Fatal(app.Listen(fmt.Sprintf(":%v", os.Getenv("PORT"))))
 }

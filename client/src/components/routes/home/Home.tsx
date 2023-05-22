@@ -4,9 +4,9 @@ import { useAuth } from "../../../context/AuthContext";
 import { FaDownload } from "react-icons/fa";
 import { useStreaming } from "../../../context/StreamingContext";
 import { IResMsg } from "../../../interfaces/GeneralInterfaces";
-import axios from "axios";
-import ResMsg from "../../shared/ResMsg";
 import { makeRequest } from "../../../services/makeRequest";
+import ResMsg from "../../shared/ResMsg";
+import { useStreams } from "../../../context/StreamsContext";
 
 function VideoDownloadButton({ name }: { name: string }) {
   const { server } = useAuth();
@@ -37,41 +37,26 @@ function VideoStream({ stream }: { stream: MediaStream }) {
 export default function Home() {
   const { streams } = useStreaming();
   const { server } = useAuth();
+  const { peersData } = useStreams();
 
   const [resMsg, setResMsg] = useState<IResMsg>({});
-  const [videoNames, setVideoNames] = useState<string[]>([]);
-
-  const getStreams = async () => {
-    try {
-      setResMsg({ pen: true });
-      const names = await makeRequest({
-        method: "GET",
-        url: `${server}/api/videos`,
-      });
-      setVideoNames(names || []);
-      setResMsg({ pen: false });
-    } catch (e) {
-      setResMsg({ err: true, msg: `${e}` });
-    }
-  };
-
-  useEffect(() => {
-    getStreams();
-  }, []);
 
   return (
     <div className={styles.container}>
       <ul className={styles["streams-list"]}>
-        {videoNames.map((name) => (
-          <li key={name}>
-            {streams[name] && <VideoStream stream={streams[name].stream} />}
-            <div>
-              {name}
-              {streams[name].motion && <> - Motion detected</>}
-              <VideoDownloadButton name={name} />
-            </div>
-          </li>
-        ))}
+        {/*render all the WebRTC streams*/}
+        {peersData.map((p) =>
+          p.streams?.map((s) => (
+            <li key={s.mediaStreamId}>
+              {s.stream && <VideoStream stream={s.stream} />}
+              <div>
+                {s.name}
+                {/*streams[name].motion && <> - Motion detected</>*/}
+                <VideoDownloadButton name={s.name} />
+              </div>
+            </li>
+          ))
+        )}
       </ul>
       <ResMsg msg={resMsg} />
     </div>

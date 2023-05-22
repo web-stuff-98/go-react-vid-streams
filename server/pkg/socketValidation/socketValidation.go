@@ -21,11 +21,8 @@ type WebRTCReturningSignal struct {
 
 // WEBRTC_JOIN
 type WebRTCJoin struct {
-	ChannelID   string       `json:"channel_id"`
 	StreamsInfo []StreamInfo `json:"streams_info"`
 }
 
 // WEBRTC_LEAVE
-type WebRTCLeave struct {
-	ChannelID string `json:"channel_id"`
-}
+type WebRTCLeave struct{}

@@ -84,6 +84,8 @@ func Init(rtcDC chan string) *SocketServer {
 		SendDataToConns: make(chan SendDataToConns),
 		SendDataToAll:   make(chan SendDataToAll),
 
+		MessageLoop: make(chan Message),
+
 		RegisterConn:   make(chan ConnectionData),
 		UnregisterConn: make(chan *websocket.Conn),
 	}
@@ -94,6 +96,7 @@ func Init(rtcDC chan string) *SocketServer {
 func runServer(ss *SocketServer, rtcDC chan string) {
 	go sendData(ss)
 	go sendDataMulti(ss)
+	go sendDataToUid(ss)
 	go sendDataToUids(ss)
 	go sendDataToAll(ss)
 	go messageLoop(ss)
