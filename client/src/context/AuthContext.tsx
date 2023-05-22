@@ -8,14 +8,18 @@ export const AuthContext = createContext<{
   serverNoProtocol: string;
   streamerLogin: (name: string) => Promise<void>;
   streamerRegister: (name: string) => Promise<void>;
-  serverLogin: (address: string, password: string) => Promise<void>;
+  initialLogin: (
+    address: string,
+    password: string,
+    streamerName: string
+  ) => Promise<void>;
 }>({
   uid: "",
   server: "",
   serverNoProtocol: "",
   streamerLogin: () => new Promise<void>((r) => r),
   streamerRegister: () => new Promise<void>((r) => r),
-  serverLogin: () => new Promise<void>((r) => r),
+  initialLogin: () => new Promise<void>((r) => r),
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -45,13 +49,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUid(data);
   };
 
-  const serverLogin = async (address: string, password: string) => {
-    await makeRequest({
+  const initialLogin = async (
+    address: string,
+    password: string,
+    streamerName: string
+  ) => {
+    const id = await makeRequest({
       url: `${address}/api/auth/login`,
-      data: { password },
+      data: { server_password: password, streamer_name: streamerName },
       method: "POST",
     });
     setServer(address);
+    setUid(id);
   };
 
   const refreshIntervalFunc = async () => {
@@ -74,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         serverNoProtocol,
         streamerLogin,
         streamerRegister,
-        serverLogin,
+        initialLogin,
       }}
     >
       {children}

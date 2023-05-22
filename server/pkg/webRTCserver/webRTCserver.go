@@ -98,8 +98,6 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			uidsMap[wru.Uid] = struct{}{}
 		}
 
-		log.Printf("Sent to channel")
-
 		ss.SendDataToUids <- socketServer.SendDataToUids{
 			Uids: uidsMap,
 			Data: socketMessages.WebRTCUserJoinedLeft{
@@ -108,8 +106,6 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			EventName: "WEBRTC_USER_JOINED",
 		}
 
-		log.Printf("Success")
-
 		ss.SendDataToUid <- socketServer.SendDataToUid{
 			Uid: data.Uid,
 			Data: socketMessages.WebRTCAllUsers{
@@ -117,8 +113,6 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 			},
 			EventName: "WEBRTC_ALL_USERS",
 		}
-
-		log.Printf("Success")
 
 		log.Printf("User joined - all users: %v", uids)
 

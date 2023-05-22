@@ -131,7 +131,7 @@
 
 body {
   margin: 0;
-  background: var(--background-tile);
+  height: 100vh;
 }
 
 input[type="file"] {

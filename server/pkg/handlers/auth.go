@@ -50,7 +50,7 @@ func (h handler) StreamerLogin(ctx *fiber.Ctx) error {
 		}
 	}
 
-	if cookie, err := authHelpers.AuthorizeStreamer(h.RedisClient, rctx, id); err != nil {
+	if cookie, err := authHelpers.AuthorizeLogin(h.RedisClient, rctx, id); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	} else {
 		ctx.Locals("uid", id)
@@ -111,7 +111,7 @@ func (h handler) StreamerRegister(ctx *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 
-	if cookie, err := authHelpers.AuthorizeStreamer(h.RedisClient, rctx, id); err != nil {
+	if cookie, err := authHelpers.AuthorizeLogin(h.RedisClient, rctx, id); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	} else {
 		ctx.Locals("uid", id)
@@ -158,9 +158,11 @@ func (h handler) Refresh(ctx *fiber.Ctx) error {
 	return nil
 }
 
-func (h handler) ServerLogin(ctx *fiber.Ctx) error {
+// if the streamer name provided for the initial login doesn't exist,
+// then the streamer will be created.
+func (h handler) InitialLogin(ctx *fiber.Ctx) error {
 	v := validator.New()
-	body := &validation.ServerLogin{}
+	body := &validation.InitialLogin{}
 	if err := json.Unmarshal(ctx.Body(), &body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
 	}
@@ -172,7 +174,7 @@ func (h handler) ServerLogin(ctx *fiber.Ctx) error {
 	defer cancel()
 
 	if os.Getenv("ENVIRONMENT") == "PRODUCTION" {
-		if err := bcrypt.CompareHashAndPassword([]byte(os.Getenv("SERVER_PASSWORD_HASH")), []byte(body.Password)); err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(os.Getenv("SERVER_PASSWORD_HASH")), []byte(body.ServerPassword)); err != nil {
 			if err == bcrypt.ErrMismatchedHashAndPassword {
 				return fiber.NewError(fiber.StatusUnauthorized, "Invalid credentials")
 			} else {
@@ -180,16 +182,49 @@ func (h handler) ServerLogin(ctx *fiber.Ctx) error {
 			}
 		}
 	} else {
-		if body.Password != os.Getenv("SERVER_PASSWORD_HASH") {
+		if body.ServerPassword != os.Getenv("SERVER_PASSWORD_HASH") {
 			return fiber.NewError(fiber.StatusUnauthorized, "Invalid credentials")
 		}
 	}
 
-	if cookie, err := authHelpers.AuthorizeServerLogin(h.RedisClient, rctx); err != nil {
+	conn, err := h.Pool.Acquire(rctx)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
+	defer conn.Release()
+
+	var id string
+	if selectStreamerStmt, err := conn.Conn().Prepare(rctx, "initial_login_select_streamer_stmt", `
+		SELECT id FROM streamers WHERE LOWER(name) = LOWER($1);
+	`); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	} else {
+		if err = conn.Conn().QueryRow(rctx, selectStreamerStmt.Name, body.StreamerName).Scan(&id); err != nil {
+			if err != pgx.ErrNoRows {
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+			}
+		}
+	}
+
+	// if id is empty that means a streamer by the name provided was not found, so it must be created
+	if id == "" {
+		if createStreamerStmt, err := conn.Conn().Prepare(rctx, "initial_login_create_streamer_stmt", `
+			INSERT INTO streamers (name) VALUES($1) RETURNING id;
+		`); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+		} else {
+			if err = conn.Conn().QueryRow(rctx, createStreamerStmt.Name, body.StreamerName).Scan(&id); err != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+			}
+		}
+	}
+
+	if cookie, err := authHelpers.AuthorizeLogin(h.RedisClient, rctx, id); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	} else {
 		ctx.Response().Header.Add("Content-Type", "text/plain")
 		ctx.Cookie(cookie)
+		ctx.WriteString(id)
 	}
 
 	return nil

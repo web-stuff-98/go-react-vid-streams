@@ -11,7 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/lucsky/cuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -63,7 +62,7 @@ func GetClearedCookie() *fiber.Cookie {
 }*/
 
 // Creates the session ID on redis and encodes it as a JWT into a cookie
-func AuthorizeStreamer(redisClient *redis.Client, ctx context.Context, uid string) (*fiber.Cookie, error) {
+func AuthorizeLogin(redisClient *redis.Client, ctx context.Context, uid string) (*fiber.Cookie, error) {
 	sid := uuid.New()
 	sessionDuration := time.Minute * 2
 
@@ -78,31 +77,6 @@ func AuthorizeStreamer(redisClient *redis.Client, ctx context.Context, uid strin
 	cookie := createCookie(token, time.Now().Add(sessionDuration))
 
 	cmd := redisClient.Set(ctx, sid.String(), uid, sessionDuration)
-	if cmd.Err() != nil {
-		log.Fatalln("Redis error in Authorize helper function:", cmd.Err())
-	}
-
-	return cookie, nil
-}
-
-func AuthorizeServerLogin(redisClient *redis.Client, ctx context.Context) (*fiber.Cookie, error) {
-	sid := uuid.New()
-	sessionDuration := time.Minute * 2
-
-	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Issuer:    sid.String(),
-		ExpiresAt: time.Now().Add(sessionDuration).Unix(),
-	})
-	token, err := claims.SignedString([]byte(os.Getenv("SECRET")))
-	if err != nil {
-		log.Fatalln("Error in Authorize helper function generating token:", err)
-	}
-	cookie := createCookie(token, time.Now().Add(sessionDuration))
-
-	// When logging into the server assign a random uid, since if it's just left blank then
-	// there's no way to get webRTC to work until the client logs into a streamer and gets a real ID
-	randomId := cuid.New()
-	cmd := redisClient.Set(ctx, sid.String(), randomId, sessionDuration)
 	if cmd.Err() != nil {
 		log.Fatalln("Redis error in Authorize helper function:", cmd.Err())
 	}
@@ -138,7 +112,7 @@ func RefreshToken(redisClient *redis.Client, ctx *fiber.Ctx, rctx context.Contex
 		return GetClearedCookie(), err
 	} else {
 		redisClient.Del(rctx, sid)
-		if cookie, err := AuthorizeStreamer(redisClient, rctx, uid); err != nil {
+		if cookie, err := AuthorizeLogin(redisClient, rctx, uid); err != nil {
 			return GetClearedCookie(), err
 		} else {
 			return cookie, nil

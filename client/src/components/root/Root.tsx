@@ -12,7 +12,7 @@ const Root = () => {
         <ul>
           {server && (
             <li>
-              <Link to="/">Home</Link>
+              <Link to="/">Watch video streams</Link>
             </li>
           )}
           <li>
@@ -34,6 +34,7 @@ const Root = () => {
             </li>
           )}
         </ul>
+        {uid}
       </nav>
       <main>
         <Outlet />

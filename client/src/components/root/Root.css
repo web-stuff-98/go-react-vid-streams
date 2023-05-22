@@ -2,6 +2,10 @@ nav {
   width: 100%;
   border-bottom: 1px solid var(--border-medium);
   padding: var(--gap-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--xs);
 }
 
 nav ul {
@@ -16,9 +20,14 @@ nav ul {
 nav ul li a {
   text-decoration: none;
   font-weight: 600;
+  font-size: var(--sm);
 }
 
 main {
   height: 100%;
   width: 100%;
+  padding: var(--gap-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

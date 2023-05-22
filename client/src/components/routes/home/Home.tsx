@@ -34,29 +34,44 @@ function VideoStream({ stream }: { stream: MediaStream }) {
   return <video autoPlay playsInline ref={vidRef} />;
 }
 
+const StreamWindow = ({
+  name,
+  stream,
+}: {
+  name: string;
+  stream?: MediaStream;
+}) => (
+  <li>
+    {stream && <VideoStream stream={stream} />}
+    <div>
+      {name}
+      {/*streams[name].motion && <> - Motion detected</>*/}
+      <VideoDownloadButton name={name} />
+    </div>
+  </li>
+);
+
 export default function Home() {
   const { streams } = useStreaming();
   const { server } = useAuth();
-  const { peersData } = useStreams();
+  const { peers } = useStreams();
 
   const [resMsg, setResMsg] = useState<IResMsg>({});
 
   return (
     <div className={styles.container}>
       <ul className={styles["streams-list"]}>
+        {peers.length > 0 && JSON.stringify(peers[0].streams)}
         {/*render all the WebRTC streams*/}
-        {peersData.map((p) =>
+        {peers.map((p) =>
           p.streams?.map((s) => (
-            <li key={s.mediaStreamId}>
-              {s.stream && <VideoStream stream={s.stream} />}
-              <div>
-                {s.name}
-                {/*streams[name].motion && <> - Motion detected</>*/}
-                <VideoDownloadButton name={s.name} />
-              </div>
-            </li>
+            <StreamWindow key={s.name} name={s.name} stream={s.stream} />
           ))
         )}
+        {/*render the users own streams for debugging*/}
+        {Object.keys(streams).map((name) => (
+          <StreamWindow key={name} name={name} stream={streams[name].stream} />
+        ))}
       </ul>
       <ResMsg msg={resMsg} />
     </div>

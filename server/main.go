@@ -41,7 +41,7 @@ func main() {
 
 	app.Get("/api/videos", h.GetVideoNames)
 
-	app.Post("/api/auth/login", h.ServerLogin)
+	app.Post("/api/auth/login", h.InitialLogin)
 	app.Post("/api/auth/refresh", h.Refresh)
 	app.Post("/api/auth/streamer/login", h.StreamerLogin)
 	app.Post("/api/auth/streamer/logout", h.StreamerLogout)

@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, MutableRefObject } from "react";
 import { useAuth } from "./AuthContext";
 import { makeRequest } from "../services/makeRequest";
 import useSocket from "./SocketContext";
 
 /*
 This handles streaming the users own streams to the server.
-Displaying all streams via WebRTC is done by Streams.tsx
+Handling other users streams via WebRTC is done by
+StreamsContext.tsx
 */
 
 type StreamInfo = {
@@ -18,10 +19,12 @@ type StreamInfo = {
 
 export const StreamingContext = createContext<{
   streams: Record<string, StreamInfo>;
+  streamsRef?: MutableRefObject<Record<string, StreamInfo>>;
   addStream: (name: string, deviceId: string) => Promise<void>;
   removeStream: (name: string) => void;
 }>({
   streams: {},
+  streamsRef: undefined,
   addStream: () => new Promise((r) => r()),
   removeStream: () => {},
 });
@@ -32,6 +35,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 
   const [streams, setStreams] = useState<Record<string, StreamInfo>>({});
   const [recorders, setRecorders] = useState<Record<string, MediaRecorder>>({});
+  const streamsRef = useRef<Record<string, StreamInfo>>({});
 
   const rejoinWebRTC = () => {
     sendIfPossible({
@@ -60,6 +64,10 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       ...s,
       [name]: { stream, motion: false, deviceId },
     }));
+    streamsRef.current = {
+      ...streamsRef.current,
+      [name]: { stream, motion: false, deviceId },
+    };
   };
 
   const removeStream = (name: string) => {
@@ -68,6 +76,9 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       delete newStreams[name];
       return { ...newStreams };
     });
+    const s = streamsRef.current;
+    delete s[name];
+    streamsRef.current = s;
     setRecorders((r) => {
       const newRecorders = r;
       delete newRecorders[name];
@@ -127,6 +138,10 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
           newStreams[name].motion = motionDetected;
           return { ...newStreams };
         });
+        const s = streamsRef.current;
+        s[name].lastFrame = currentFrameData;
+        s[name].motion = motionDetected;
+        streamsRef.current = s;
       }
     }, 300);
     rejoinWebRTC();
@@ -167,8 +182,24 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [streams]);
 
+  useEffect(() => {
+    return () => {
+      sendIfPossible({
+        event: "WEBRTC_LEAVE",
+        data: {},
+      });
+    };
+  }, []);
+
   return (
-    <StreamingContext.Provider value={{ streams, addStream, removeStream }}>
+    <StreamingContext.Provider
+      value={{
+        streams,
+        streamsRef,
+        addStream,
+        removeStream,
+      }}
+    >
       {children}
       {Object.keys(streams).map((k) => (
         <HiddenVideoWindow key={k} stream={streams[k].stream} name={k} />

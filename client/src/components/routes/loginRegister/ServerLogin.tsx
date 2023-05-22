@@ -7,13 +7,14 @@ import { useAuth } from "../../../context/AuthContext";
 import ResMsg from "../../shared/ResMsg";
 
 export default function ServerLogin() {
-  const { serverLogin } = useAuth();
+  const { initialLogin } = useAuth();
 
   const navigate = useNavigate();
 
   const [resMsg, setResMsg] = useState<IResMsg>({});
   const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
+  const [streamerName, setStreamerName] = useState("");
 
   const handleAddress = (e: ChangeEvent) =>
     setAddress((e.target as HTMLInputElement).value);
@@ -21,11 +22,14 @@ export default function ServerLogin() {
   const handlePassword = (e: ChangeEvent) =>
     setPassword((e.target as HTMLInputElement).value);
 
+  const handleStreamerName = (e: ChangeEvent) =>
+    setStreamerName((e.target as HTMLInputElement).value);
+
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     try {
       setResMsg({ pen: true });
-      await serverLogin(address, password);
+      await initialLogin(address, password, streamerName);
       navigate("/");
       setResMsg({ pen: false });
     } catch (e) {
@@ -46,6 +50,15 @@ export default function ServerLogin() {
             onChange={handlePassword}
             id="password"
             type="password"
+            required
+          />
+        </div>
+        <div className={formStyles["input-label"]}>
+          <label htmlFor="streamer-name">Streamer name</label>
+          <input
+            onChange={handleStreamerName}
+            id="streamer-name"
+            type="text"
             required
           />
         </div>
