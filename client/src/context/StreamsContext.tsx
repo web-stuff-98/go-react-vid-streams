@@ -48,9 +48,6 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
   const peersRef = useRef<PeerData[]>([]);
 
   const handleStream = (stream: MediaStream, uid: string) => {
-    console.log(
-      `Stream received from peer WebRTC connection - stream ID was ${stream.id} - Uid was ${uid}`
-    );
     setPeers((p) => {
       console.log(p);
       const i = p.findIndex((p) => p.streamerId === uid);
@@ -126,26 +123,36 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
     const msg = JSON.parse(e.data);
     if (!msg) return;
     if (isWebRTCAllUsers(msg)) {
-      const peers: PeerData[] = [];
+      let peers: PeerData[] = [];
       if (msg.data.users) {
         msg.data.users.forEach((user) => {
           const peer = createPeer(user.uid);
-          peersRef.current.push({
-            peer,
-            streamerId: user.uid,
-            streams: user.streams_info.map((i) => ({
-              name: i.name,
-              mediaStreamId: i.media_stream_id,
-            })),
-          });
-          peers.push({
-            peer,
-            streamerId: user.uid,
-            streams: user.streams_info.map((i) => ({
-              name: i.name,
-              mediaStreamId: i.media_stream_id,
-            })),
-          });
+          peersRef.current = [
+            ...peersRef.current.filter(
+              (p) => !msg.data.users.find((op) => op.uid === p.streamerId)
+            ),
+            {
+              peer,
+              streamerId: user.uid,
+              streams: user.streams_info.map((i) => ({
+                name: i.name,
+                mediaStreamId: i.media_stream_id,
+              })),
+            },
+          ];
+          peers = [
+            ...peers.filter(
+              (p) => !msg.data.users.find((op) => op.uid === p.streamerId)
+            ),
+            {
+              peer,
+              streamerId: user.uid,
+              streams: user.streams_info.map((i) => ({
+                name: i.name,
+                mediaStreamId: i.media_stream_id,
+              })),
+            },
+          ];
         });
       }
       setPeers(peers);
@@ -186,7 +193,10 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
           mediaStreamId: i.media_stream_id,
         })),
       };
-      setPeers((p) => [...p, newData]);
+      setPeers((p) => [
+        ...p.filter((p) => msg.data.caller_id !== p.streamerId),
+        newData,
+      ]);
       peersRef.current.push(newData);
       setTimeout(() => {
         peer.signal(JSON.parse(msg.data.signal));
