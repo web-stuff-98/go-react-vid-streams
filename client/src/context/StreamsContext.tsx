@@ -1,30 +1,21 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Peer from "simple-peer";
-import { useStreaming } from "./StreamingContext";
 import useSocket from "./SocketContext";
+import { useStreaming } from "./StreamingContext";
 import {
   isWebRTCAllUsers,
   isWebRTCJoinedSignal,
   isWebRTCReturnSignalOut,
   isWebRTCUserLeft,
+  isWebRTCMotionUpdate,
 } from "../socketComms/InterpretEvent";
-
-/*
-This handle all streams via webRTC server/client socket events
-*/
 
 type Stream = {
   stream?: MediaStream;
   mediaStreamId: string;
   name: string;
+  motion?: boolean;
 };
 
 type PeerData = {
@@ -34,7 +25,7 @@ type PeerData = {
 };
 
 export const StreamsContext = createContext<{
-  // key is the stream name
+  // should have used a Record for this
   peers: PeerData[];
 }>({
   peers: [],
@@ -115,7 +106,6 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
       });
     });
     peer.on("stream", (stream) => handleStream(stream, uid));
-    console.log("Peer created with uid:", uid);
     return peer;
   };
 
@@ -183,7 +173,6 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
       });
     }
     if (isWebRTCJoinedSignal(msg)) {
-      console.log("Joined streams info:" + msg.data.streams_info);
       const peer = addPeer(msg.data.caller_id);
       const newData = {
         peer,
@@ -212,6 +201,20 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
           return [...newPeers];
         });
         peersRef.current.splice(i, 1);
+      }
+    }
+    if (isWebRTCMotionUpdate(msg)) {
+      const i = peers.findIndex((p) => p.streamerId === msg.data.streamer_id);
+      if (i !== -1) {
+        setPeers((p) => {
+          const newPeers = p;
+          const si = (newPeers[i].streams || []).findIndex(
+            (s) => s.mediaStreamId === msg.data.media_stream_id
+          );
+          if (si === -1) return p;
+          newPeers[i].streams![si].motion = msg.data.motion;
+          return [...newPeers];
+        });
       }
     }
   };

@@ -10,11 +10,12 @@ import (
 type SocketServer struct {
 	Connections Connections
 
-	SendData        chan SendData
-	SendDataToUid   chan SendDataToUid
-	SendDataToUids  chan SendDataToUids
-	SendDataToConns chan SendDataToConns
-	SendDataToAll   chan SendDataToAll
+	SendData            chan SendData
+	SendDataToUid       chan SendDataToUid
+	SendDataToUids      chan SendDataToUids
+	SendDataToConns     chan SendDataToConns
+	SendDataToAll       chan SendDataToAll
+	SendDataToAllExcept chan SendDataToAllExcept
 
 	MessageLoop chan Message
 
@@ -58,6 +59,12 @@ type SendDataToAll struct {
 	EventName string
 }
 
+type SendDataToAllExcept struct {
+	Data      interface{}
+	EventName string
+	Exclude   string
+}
+
 // ------ Mutex protected ------ //
 
 type Connections struct {
@@ -78,11 +85,12 @@ func Init(rtcDC chan string) *SocketServer {
 			data: make(map[*websocket.Conn]string),
 		},
 
-		SendData:        make(chan SendData),
-		SendDataToUid:   make(chan SendDataToUid),
-		SendDataToUids:  make(chan SendDataToUids),
-		SendDataToConns: make(chan SendDataToConns),
-		SendDataToAll:   make(chan SendDataToAll),
+		SendData:            make(chan SendData),
+		SendDataToUid:       make(chan SendDataToUid),
+		SendDataToUids:      make(chan SendDataToUids),
+		SendDataToConns:     make(chan SendDataToConns),
+		SendDataToAll:       make(chan SendDataToAll),
+		SendDataToAllExcept: make(chan SendDataToAllExcept),
 
 		MessageLoop: make(chan Message),
 
@@ -99,6 +107,7 @@ func runServer(ss *SocketServer, rtcDC chan string) {
 	go sendDataToUid(ss)
 	go sendDataToUids(ss)
 	go sendDataToAll(ss)
+	go sendDataToAllExcept(ss)
 	go messageLoop(ss)
 	go registerConn(ss)
 	go unregisterConn(ss, rtcDC)
@@ -196,6 +205,22 @@ func sendDataToAll(ss *SocketServer) {
 
 		for c := range ss.Connections.data {
 			WriteMessage(data.EventName, data.Data, c, ss)
+		}
+
+		ss.Connections.mutex.Unlock()
+	}
+}
+
+func sendDataToAllExcept(ss *SocketServer) {
+	for {
+		data := <-ss.SendDataToAllExcept
+
+		ss.Connections.mutex.Lock()
+
+		for c, uid := range ss.Connections.data {
+			if uid != data.Exclude {
+				WriteMessage(data.EventName, data.Data, c, ss)
+			}
 		}
 
 		ss.Connections.mutex.Unlock()

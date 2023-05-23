@@ -3,6 +3,7 @@ package socketvalidation
 type StreamInfo struct {
 	MediaStreamID string `json:"media_stream_id"`
 	StreamName    string `json:"name"`
+	Motion        bool   `json:"motion"`
 }
 
 // WEBRTC_SENDING_SIGNAL
@@ -26,3 +27,9 @@ type WebRTCJoin struct {
 
 // WEBRTC_LEAVE
 type WebRTCLeave struct{}
+
+// WEBRTC_MOTION_UPDATE
+type WebRTCMotionUpdate struct {
+	MediaStreamID string `json:"media_stream_id"`
+	Motion        bool   `json:"motion"`
+}

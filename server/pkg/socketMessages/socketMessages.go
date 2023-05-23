@@ -29,3 +29,10 @@ type WebRTCOutUser struct {
 	Uid         string                        `json:"uid"`
 	StreamsInfo []socketValidation.StreamInfo `json:"streams_info"`
 }
+
+// TYPE: WEBRTC_MOTION_UPDATE
+type WebRTCMotionUpdate struct {
+	MediaStreamID string `json:"media_stream_id"`
+	Motion        bool   `json:"motion"`
+	StreamerID    string `json:"streamer_id"`
+}

@@ -25,6 +25,8 @@ func handleSocketEvent(data map[string]interface{}, event string, h handler, uid
 		err = webRTCSendingSignal(data, h, uid, c)
 	case "WEBRTC_RETURNING_SIGNAL":
 		err = webRTCReturningSignal(data, h, uid, c)
+	case "WEBRTC_MOTION_UPDATE":
+		err = webRTCMotionUpdate(data, h, uid, c)
 	default:
 		return fmt.Errorf("Unrecognized socket event")
 	}
@@ -106,6 +108,22 @@ func webRTCReturningSignal(inData map[string]interface{}, h handler, uid string,
 		CallerID:    data.CallerID,
 		Uid:         uid,
 		StreamsInfo: data.StreamsInfo,
+	}
+
+	return nil
+}
+
+func webRTCMotionUpdate(inData map[string]interface{}, h handler, uid string, c *websocket.Conn) error {
+	data := &socketValidation.WebRTCMotionUpdate{}
+	var err error
+	if err = UnmarshalMap(inData, data); err != nil {
+		return err
+	}
+
+	h.WebRTCServer.MotionUpdate <- webRTCserver.MotionUpdate{
+		Uid:           uid,
+		MediaStreamId: data.MediaStreamID,
+		Motion:        data.Motion,
 	}
 
 	return nil

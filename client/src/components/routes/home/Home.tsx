@@ -34,15 +34,17 @@ function VideoStream({ stream }: { stream: MediaStream }) {
 const StreamWindow = ({
   name,
   stream,
+  motion,
 }: {
   name: string;
   stream?: MediaStream;
+  motion?: boolean;
 }) => (
   <li>
     {stream && <VideoStream stream={stream} />}
     <div>
       {name}
-      {/*streams[name].motion && <> - Motion detected</>*/}
+      {motion && <> - Motion detected</>}
       <VideoDownloadButton name={name} />
     </div>
   </li>
@@ -55,7 +57,8 @@ export default function Home() {
   return (
     <div className={styles.container}>
       {typeof peers}
-      {peers && Array.isArray(peers) &&
+      {peers &&
+        Array.isArray(peers) &&
         peers.length > 0 &&
         JSON.stringify(
           peers.map((p) => {
@@ -64,14 +67,25 @@ export default function Home() {
           })
         )}
       <ul className={styles["streams-list"]}>
-        {peers && Array.isArray(peers) &&
+        {peers &&
+          Array.isArray(peers) &&
           peers.map((p) =>
             p.streams?.map((s) => (
-              <StreamWindow key={s.name} name={s.name} stream={s.stream} />
+              <StreamWindow
+                motion={s.motion}
+                key={s.name}
+                name={s.name}
+                stream={s.stream}
+              />
             ))
           )}
         {Object.keys(streams).map((name) => (
-          <StreamWindow key={name} name={name} stream={streams[name].stream} />
+          <StreamWindow
+            motion={streams[name].motion}
+            key={name}
+            name={name}
+            stream={streams[name].stream}
+          />
         ))}
       </ul>
     </div>

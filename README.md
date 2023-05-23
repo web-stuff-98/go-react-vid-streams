@@ -10,7 +10,6 @@ When it is done there will be a seperate client and server app. The server exe w
 
 #### Todos:
 
-- A live feed for all streams available on the homepage using WebRTC
 - Add a timestamp to the video streams
 - Make the UI look good
 - Command line interface for starting up the server with a custom password and assigning the environment variables

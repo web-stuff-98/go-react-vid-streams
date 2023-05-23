@@ -15,6 +15,7 @@ type WebRTCServer struct {
 	LeaveWebRTC        chan LeaveWebRTC
 	SignalWebRTC       chan SignalWebRTC
 	ReturnSignalWebRTC chan ReturnSignalWebRTC
+	MotionUpdate       chan MotionUpdate
 }
 
 // ------ Mutex protected ------ //
@@ -49,6 +50,12 @@ type ReturnSignalWebRTC struct {
 	StreamsInfo []socketValidation.StreamInfo
 }
 
+type MotionUpdate struct {
+	MediaStreamId string
+	Uid           string
+	Motion        bool
+}
+
 // ------ General structs ------ //
 
 type Connection struct {
@@ -64,6 +71,7 @@ func Init(ss *socketServer.SocketServer, rtcDC chan string) *WebRTCServer {
 		LeaveWebRTC:        make(chan LeaveWebRTC),
 		SignalWebRTC:       make(chan SignalWebRTC),
 		ReturnSignalWebRTC: make(chan ReturnSignalWebRTC),
+		MotionUpdate:       make(chan MotionUpdate),
 	}
 	runServer(rtc, ss, rtcDC)
 	return rtc
@@ -75,6 +83,7 @@ func runServer(rtc *WebRTCServer, ss *socketServer.SocketServer, rtcDC chan stri
 	go sendWebRTCSignals(rtc, ss)
 	go returningWebRTCSignals(rtc, ss)
 	go watchForSocketDisconnect(rtc, rtcDC)
+	go motionUpdate(rtc, ss)
 }
 
 func watchForSocketDisconnect(rtc *WebRTCServer, rtcDC chan string) {
@@ -189,5 +198,40 @@ func returningWebRTCSignals(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 				StreamsInfo: data.StreamsInfo,
 			},
 		}
+	}
+}
+
+func motionUpdate(rtc *WebRTCServer, ss *socketServer.SocketServer) {
+	for {
+		data := <-rtc.MotionUpdate
+
+		rtc.Connections.mutex.Lock()
+
+		if info, ok := rtc.Connections.data[data.Uid]; ok {
+			newStreamsInfo := info.StreamsInfo
+
+			for i, si := range newStreamsInfo {
+				if si.MediaStreamID == data.MediaStreamId {
+					newStreamsInfo[i].Motion = data.Motion
+					break
+				}
+			}
+
+			rtc.Connections.data[data.Uid] = Connection{
+				StreamsInfo: newStreamsInfo,
+			}
+		}
+
+		ss.SendDataToAllExcept <- socketServer.SendDataToAllExcept{
+			Exclude: data.Uid,
+			Data: socketMessages.WebRTCMotionUpdate{
+				Motion:        true,
+				MediaStreamID: data.MediaStreamId,
+				StreamerID:    data.Uid,
+			},
+			EventName: "WEBRTC_MOTION_UPDATE",
+		}
+
+		rtc.Connections.mutex.Unlock()
 	}
 }

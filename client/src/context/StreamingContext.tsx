@@ -13,6 +13,7 @@ StreamsContext.tsx
 type StreamInfo = {
   stream: MediaStream;
   motion: boolean;
+  motionLastDetected?: number;
   lastFrame?: ImageData;
   deviceId: string;
 };
@@ -134,15 +135,35 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             5;
         }
 
+        const motion =
+          motionDetected ||
+          (typeof streamsRef.current[name].motionLastDetected === "number" &&
+            new Date().getTime() -
+              (streamsRef.current[name].motionLastDetected as number) <
+              5);
+
+        if (streamsRef.current[name].motion !== motion)
+          sendIfPossible({
+            event: "WEBRTC_MOTION_UPDATE",
+            data: {
+              media_stream_id: streamsRef.current[name].stream.id,
+              motion,
+            },
+          });
+
         setStreams((s) => {
           const newStreams = s;
           newStreams[name].lastFrame = currentFrameData;
-          newStreams[name].motion = motionDetected;
+          newStreams[name].motion = motion;
           return { ...newStreams };
         });
         const s = streamsRef.current;
         s[name].lastFrame = currentFrameData;
-        s[name].motion = motionDetected;
+        s[name].motion = motion;
+        // if motion was last detected in the last 5 seconds, motion should still
+        // be considered detected
+        s[name].motion = true;
+        if (motionDetected) s[name].motionLastDetected = new Date().getTime();
         streamsRef.current = s;
       }
     }, 300);

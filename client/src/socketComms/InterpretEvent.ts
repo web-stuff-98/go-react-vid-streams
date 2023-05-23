@@ -13,6 +13,7 @@ type WebRTCJoinedSignal = {
     streams_info: {
       media_stream_id: string;
       name: string;
+      motion: boolean;
     }[];
   };
 };
@@ -30,6 +31,7 @@ type WebRTCReturnSignalOut = {
     streams_info: {
       media_stream_id: string;
       name: string;
+      motion: boolean;
     }[];
   };
 };
@@ -41,8 +43,17 @@ type WebRTCAllUsers = {
       streams_info: {
         media_stream_id: string;
         name: string;
+        motion: boolean;
       }[];
     }[];
+  };
+};
+
+type WebRTCMotionUpdate = {
+  data: {
+    media_stream_id: string;
+    motion: boolean;
+    streamer_id: string;
   };
 };
 
@@ -65,4 +76,9 @@ export function isWebRTCReturnSignalOut(
 }
 export function isWebRTCAllUsers(object: any): object is WebRTCAllUsers {
   return object.event === "WEBRTC_ALL_USERS";
+}
+export function isWebRTCMotionUpdate(
+  object: any
+): object is WebRTCMotionUpdate {
+  return object.event === "WEBRTC_MOTION_UPDATE";
 }
