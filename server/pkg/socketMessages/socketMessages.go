@@ -26,5 +26,6 @@ type WebRTCAllUsers struct {
 	Users []WebRTCOutUser `json:"users"`
 }
 type WebRTCOutUser struct {
-	Uid string `json:"uid"`
+	Uid         string                        `json:"uid"`
+	StreamsInfo []socketValidation.StreamInfo `json:"streams_info"`
 }

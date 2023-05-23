@@ -1,7 +1,13 @@
 .container {
-  padding: var(--gap-lg);
   display: flex;
   flex-direction: column;
+  width: 10rem;
+  height: fit-content;
+  border: 1px solid var(--border-medium);
+  display: flex;
+  border-radius: var(--border-radius-md);
+  margin: auto;
+  box-shadow: var(--base-shadow);
 
   .device-list {
     list-style: none;
@@ -17,6 +23,7 @@
       border-bottom: 1px solid var(--border-light);
       padding: var(--gap-md);
       font-weight: 600;
+      font-size: var(--xs);
       cursor: pointer;
     }
     li:last-of-type {

@@ -20,7 +20,7 @@ type WebRTCServer struct {
 // ------ Mutex protected ------ //
 
 type Connections struct {
-	data  map[string]struct{}
+	data  map[string]Connection
 	mutex sync.RWMutex
 }
 
@@ -49,10 +49,16 @@ type ReturnSignalWebRTC struct {
 	StreamsInfo []socketValidation.StreamInfo
 }
 
+// ------ General structs ------ //
+
+type Connection struct {
+	StreamsInfo []socketValidation.StreamInfo
+}
+
 func Init(ss *socketServer.SocketServer, rtcDC chan string) *WebRTCServer {
 	rtc := &WebRTCServer{
 		Connections: Connections{
-			data: make(map[string]struct{}),
+			data: make(map[string]Connection),
 		},
 		JoinWebRTC:         make(chan JoinWebRTC),
 		LeaveWebRTC:        make(chan LeaveWebRTC),
@@ -86,15 +92,18 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 
 		rtc.Connections.mutex.Lock()
 
-		uids := []socketMessages.WebRTCOutUser{}
-		for uid := range rtc.Connections.data {
-			uids = append(uids, socketMessages.WebRTCOutUser{
-				Uid: uid,
-			})
+		users := []socketMessages.WebRTCOutUser{}
+		for uid, connectionInfo := range rtc.Connections.data {
+			if uid != data.Uid {
+				users = append(users, socketMessages.WebRTCOutUser{
+					Uid:         uid,
+					StreamsInfo: connectionInfo.StreamsInfo,
+				})
+			}
 		}
 
 		uidsMap := make(map[string]struct{})
-		for _, wru := range uids {
+		for _, wru := range users {
 			uidsMap[wru.Uid] = struct{}{}
 		}
 
@@ -109,14 +118,16 @@ func joinWebRTC(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 		ss.SendDataToUid <- socketServer.SendDataToUid{
 			Uid: data.Uid,
 			Data: socketMessages.WebRTCAllUsers{
-				Users: uids,
+				Users: users,
 			},
 			EventName: "WEBRTC_ALL_USERS",
 		}
 
-		log.Printf("User joined - all users: %v", uids)
+		log.Printf("User joined - all users: %v", users)
 
-		rtc.Connections.data[data.Uid] = struct{}{}
+		rtc.Connections.data[data.Uid] = Connection{
+			StreamsInfo: data.StreamsInfo,
+		}
 
 		rtc.Connections.mutex.Unlock()
 	}

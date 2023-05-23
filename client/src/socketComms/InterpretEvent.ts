@@ -36,7 +36,13 @@ type WebRTCReturnSignalOut = {
 
 type WebRTCAllUsers = {
   data: {
-    users: { uid: string }[];
+    users: {
+      uid: string;
+      streams_info: {
+        media_stream_id: string;
+        name: string;
+      }[];
+    }[];
   };
 };
 

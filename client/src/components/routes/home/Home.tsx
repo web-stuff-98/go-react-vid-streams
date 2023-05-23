@@ -1,11 +1,8 @@
 import styles from "./Home.module.scss";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { FaDownload } from "react-icons/fa";
 import { useStreaming } from "../../../context/StreamingContext";
-import { IResMsg } from "../../../interfaces/GeneralInterfaces";
-import { makeRequest } from "../../../services/makeRequest";
-import ResMsg from "../../shared/ResMsg";
 import { useStreams } from "../../../context/StreamsContext";
 
 function VideoDownloadButton({ name }: { name: string }) {
@@ -53,27 +50,54 @@ const StreamWindow = ({
 
 export default function Home() {
   const { streams } = useStreaming();
-  const { server } = useAuth();
   const { peers } = useStreams();
-
-  const [resMsg, setResMsg] = useState<IResMsg>({});
 
   return (
     <div className={styles.container}>
-      <ul className={styles["streams-list"]}>
-        {peers.length > 0 && JSON.stringify(peers[0].streams)}
-        {/*render all the WebRTC streams*/}
-        {peers.map((p) =>
-          p.streams?.map((s) => (
-            <StreamWindow key={s.name} name={s.name} stream={s.stream} />
-          ))
+      {typeof peers}
+      {peers && Array.isArray(peers) &&
+        peers.length > 0 &&
+        JSON.stringify(
+          peers.map((p) => {
+            let outP = p;
+            return { ...outP, peer: undefined };
+          })
         )}
-        {/*render the users own streams for debugging*/}
+      <ul className={styles["streams-list"]}>
+        {peers && Array.isArray(peers) &&
+          peers.map((p) =>
+            p.streams?.map((s) => (
+              <StreamWindow key={s.name} name={s.name} stream={s.stream} />
+            ))
+          )}
         {Object.keys(streams).map((name) => (
           <StreamWindow key={name} name={name} stream={streams[name].stream} />
         ))}
       </ul>
-      <ResMsg msg={resMsg} />
     </div>
   );
 }
+
+/*
+    <div className={styles.container}>
+      {peers &&
+        peers.length > 0 &&
+        JSON.stringify(
+          peers.map((p) => {
+            let outP = p;
+            return { ...outP, peer: undefined };
+          })
+        )}
+      <ul className={styles["streams-list"]}>
+        {peers &&
+          peers.map((p) =>
+            p.streams?.map((s) => (
+              <StreamWindow key={s.name} name={s.name} stream={s.stream} />
+            ))
+          )}
+        {Object.keys(streams).map((name) => (
+          <StreamWindow key={name} name={name} stream={streams[name].stream} />
+        ))}
+      </ul>
+    </div>
+*/

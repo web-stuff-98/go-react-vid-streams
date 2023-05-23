@@ -13,9 +13,20 @@ export default function StreamerSetup() {
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [streamName, setStreamName] = useState("");
   const [resMsg, setResMsg] = useState<IResMsg>({});
+  const [deviceListResMsg, setDeviceListResMsg] = useState<IResMsg>({
+    pen: true,
+  });
 
   useEffect(() => {
-    getDeviceList();
+    getDeviceList()
+      .then((foundDevices) =>
+        setDeviceListResMsg({
+          pen: false,
+          err: !foundDevices,
+          msg: foundDevices ? "" : "A video device could not be found",
+        })
+      )
+      .catch((e) => setDeviceListResMsg({ msg: `${e}`, err: true }));
   }, []);
 
   const DeviceListItem = ({
@@ -44,14 +55,26 @@ export default function StreamerSetup() {
   return (
     <div className={styles["container"]}>
       <form onSubmit={handleSubmit} className={formStyles["form"]}>
+        <div className={formStyles["input-label"]}>
+          <label htmlFor="name">Stream name</label>
+          <input onChange={handleStreamName} id="name" type="text" required />
+        </div>
         <ul className={styles["device-list"]}>
+          <ResMsg msg={deviceListResMsg} />
           {Object.keys(devices).map((k) => (
             <DeviceListItem key={k} deviceId={k} deviceLabel={devices[k]} />
           ))}
         </ul>
-        <label htmlFor="name">Stream name</label>
-        <input onChange={handleStreamName} id="name" type="text" required />
-        <button type="submit">Add stream</button>
+        <button
+          disabled={
+            !streamName ||
+            Object.keys(devices).length == 0 ||
+            selectedDeviceId === ""
+          }
+          type="submit"
+        >
+          Add stream
+        </button>
         <ResMsg msg={resMsg} />
       </form>
     </div>

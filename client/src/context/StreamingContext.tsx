@@ -42,15 +42,17 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       event: "WEBRTC_LEAVE",
       data: {},
     });
-    sendIfPossible({
-      event: "WEBRTC_JOIN",
-      data: {
-        streams_info: Object.keys(streams).map((k) => ({
-          name: k,
-          media_stream_id: streams[k].stream.id,
-        })),
-      },
-    });
+    setTimeout(() => {
+      sendIfPossible({
+        event: "WEBRTC_JOIN",
+        data: {
+          streams_info: Object.keys(streams).map((k) => ({
+            name: k,
+            media_stream_id: streams[k].stream.id,
+          })),
+        },
+      });
+    }, 2000);
   };
 
   const addStream = async (name: string, deviceId: string) => {
@@ -211,7 +213,8 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 // I had to use a hidden video window to grab pixel data because using
 // the grabImage() function or whatever it's called on ImageBitmap was just
 // returning empty values for every pixel no matter what.
-// The video window is made to be really small to maintain performance.
+// The video window is made to be really small for performance because it's
+// a lot of pixels for a 1920x1080 image.
 function HiddenVideoWindow({
   stream,
   name,
