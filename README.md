@@ -1,17 +1,16 @@
 # go-react-vid-streams
 
-## This is an unfinished generic "motion detection security camera streaming app" where you connect different devices to a password protected server and record video streams
+## This is an unfinished generic "motion detection security camera streaming app" where you connect different devices to a password protected server and record video streams, and also watch them from the home page. These are the only features that I have implemented at the moment (watching streams through WebRTC, recording streams as chunks onto postgres when motion is detected, using cookies and JWTs to authenticate logins)
 
-### Currently video streaming, motion detection and video downloads work, other things haven't been implemented yet
+# Problems:
 
-When you are logged into the server, you don't need a password to login/register streamers.
-
-When it is done there will be a seperate client and server app. The server exe will have command line arguments for the server password. Clients will connect to the server and add their media streams, where all media streams will be visible on the homepage, with a download button for downloading the footage up to the current point where motion was detected.
+No timestamp in download video / video playback... I don't know how to fix this. Also I don't know how to add a timestamp to the video frames. I have tried but I will try again after I've done other stuff or gotten completely bored of the project.
 
 #### Todos:
 
-- Add a timestamp to the video streams
-- Make the UI look good
-- Command line interface for starting up the server with a custom password and assigning the environment variables
-- Move the client to Tauri so it can be run as a desktop app that looks cool
-- When it's done add some short documentation on how to use it
+- Timestamp on video frames and get playback trackbar to work with timestamp somehow
+- Motion sensitivity slider for individual streams
+- Page for finding both active & inactive stream recordings
+- Add sound to the streams
+- Move the client to Tauri so it can be run as a neat 1 file .exe that looks cool with rounded borders, custom icons and stuff
+- When it's done add a basic GUI for setting up the server and instructions on how to use the client app, in away that anybody could open up the built server exe file, read the instructions and easily get stuff set up

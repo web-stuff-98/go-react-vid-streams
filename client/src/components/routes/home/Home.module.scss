@@ -12,7 +12,7 @@
     li {
       padding: 0;
       margin: 0;
-      border: 1px solid var(--border-medium);
+      border: 2px solid var(--border-medium);
       border-radius: var(--border-radius-md);
       font-weight: 600;
       display: flex;
@@ -20,10 +20,12 @@
       max-width: 33.33%;
       overflow: hidden;
       box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.166);
+      position: relative;
       video {
         flex-grow: 1;
         height: 100%;
         border-bottom: 1px solid var(--border-light);
+        position: relative;
       }
       div {
         display: flex;
@@ -41,6 +43,31 @@
         gap: var(--gap-md);
         font-size: var(--sm);
       }
+      b,
+      a {
+        font-size: var(--xs);
+        text-decoration: underline;
+        font-weight: 600;
+      }
+      .live-indicator {
+        background: red;
+        border-radius: 4px;
+        color: white;
+        padding: 3px 4px;
+        text-transform: uppercase;
+        position: absolute;
+        left: 2px;
+        top: 2px;
+        z-index: 100;
+        filter: opacity(0.3);
+        text-shadow: 0px 0px 3px black;
+        box-shadow: 0px 2px 3px black;
+      }
     }
+  }
+  .watch-vid-modal-container {
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    position: relative;
   }
 }

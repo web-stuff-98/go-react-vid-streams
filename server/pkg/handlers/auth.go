@@ -11,6 +11,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/helpers/authHelpers"
+	socketMessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
+	socketServer "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/validation"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -114,6 +116,19 @@ func (h handler) StreamerRegister(ctx *fiber.Ctx) error {
 	if cookie, err := authHelpers.AuthorizeLogin(h.RedisClient, rctx, id); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	} else {
+		outData := make(map[string]interface{})
+		outData["name"] = body.Name
+		outData["id"] = id
+
+		h.SocketServer.SendDataToAll <- socketServer.SendDataToAll{
+			Data: socketMessages.ChangeData{
+				Entity: "STREAMER",
+				Method: "INSERT",
+				Data:   outData,
+			},
+			EventName: "CHANGE",
+		}
+
 		ctx.Locals("uid", id)
 		ctx.Response().Header.Add("Content-Type", "text/plain")
 		ctx.Cookie(cookie)
@@ -216,6 +231,19 @@ func (h handler) InitialLogin(ctx *fiber.Ctx) error {
 			if err = conn.Conn().QueryRow(rctx, createStreamerStmt.Name, body.StreamerName).Scan(&id); err != nil {
 				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 			}
+		}
+
+		outData := make(map[string]interface{})
+		outData["name"] = body.StreamerName
+		outData["id"] = id
+
+		h.SocketServer.SendDataToAll <- socketServer.SendDataToAll{
+			Data: socketMessages.ChangeData{
+				Entity: "STREAMER",
+				Method: "INSERT",
+				Data:   outData,
+			},
+			EventName: "CHANGE",
 		}
 	}
 

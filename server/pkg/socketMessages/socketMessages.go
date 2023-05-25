@@ -36,3 +36,10 @@ type WebRTCMotionUpdate struct {
 	Motion        bool   `json:"motion"`
 	StreamerID    string `json:"streamer_id"`
 }
+
+// TYPE: CHANGE
+type ChangeData struct {
+	Entity string `json:"entity"`
+	Method string `json:"method"`
+	Data   map[string]interface{}
+}

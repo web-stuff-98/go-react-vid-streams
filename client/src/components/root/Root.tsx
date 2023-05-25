@@ -2,9 +2,16 @@ import "./Root.css";
 import { Outlet } from "react-router";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useEffect } from "react";
+import { useStreamers } from "../../context/StreamersContext";
 
 const Root = () => {
   const { server, uid } = useAuth();
+  const { getStreamerName } = useStreamers();
+
+  useEffect(() => {
+    document.body.classList.add("dark-mode");
+  }, []);
 
   return (
     <>
@@ -34,7 +41,7 @@ const Root = () => {
             </li>
           )}
         </ul>
-        {uid}
+        {getStreamerName(uid)}
       </nav>
       <main>
         <Outlet />

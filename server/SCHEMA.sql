@@ -13,7 +13,8 @@ CREATE TABLE vid_meta (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     size INT NOT NULL DEFAULT 0,
     name VARCHAR(24) NOT NULL,
-    streamer UUID REFERENCES streamers(id) ON DELETE CASCADE
+    streamer UUID REFERENCES streamers(id) ON DELETE CASCADE,
+    active BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE vid_chunks (

@@ -103,7 +103,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
     return imageData;
   };
 
-  // setup and run interval for motion detection
+  // setup and run interval for basic motion detection
   useEffect(() => {
     const motionDetectionInterval = setInterval(async () => {
       for await (const name of Object.keys(streams)) {
@@ -111,7 +111,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 
         const currentFrameData = getImageData(name);
 
-        // compare the last frame (if it's present) to the current frame
+        // compare the brightness of the last frame (if it's present) to the current frame
         if (streams[name].lastFrame) {
           const pixelDiffs: number[] = [];
           const lastFrameData = streams[name].lastFrame!;
@@ -132,7 +132,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
           motionDetected =
             pixelDiffs.reduce((acc, val) => acc + val, 0) /
               (currentFrameData.width * currentFrameData.height) >
-            5;
+            1;
         }
 
         const motion =
@@ -140,16 +140,15 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
           (typeof streamsRef.current[name].motionLastDetected === "number" &&
             new Date().getTime() -
               (streamsRef.current[name].motionLastDetected as number) <
-              5);
+              5000);
 
-        if (streamsRef.current[name].motion !== motion)
-          sendIfPossible({
-            event: "WEBRTC_MOTION_UPDATE",
-            data: {
-              media_stream_id: streamsRef.current[name].stream.id,
-              motion,
-            },
-          });
+        sendIfPossible({
+          event: "WEBRTC_MOTION_UPDATE",
+          data: {
+            media_stream_id: streamsRef.current[name].stream.id,
+            motion,
+          },
+        });
 
         setStreams((s) => {
           const newStreams = s;
@@ -162,7 +161,6 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
         s[name].motion = motion;
         // if motion was last detected in the last 5 seconds, motion should still
         // be considered detected
-        s[name].motion = true;
         if (motionDetected) s[name].motionLastDetected = new Date().getTime();
         streamsRef.current = s;
       }
@@ -185,16 +183,16 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             mimeType: "video/webm",
           });
           recorder.addEventListener("dataavailable", async (e) => {
-            if (streams[name].motion)
-              await makeRequest({
-                url: `${server}/api/video/chunk?name=${name}`,
-                withCredentials: true,
-                method: "POST",
-                headers: {
-                  "Content-Type": "video/webm",
-                },
-                data: e.data,
-              });
+            //if (streams[name].motion)
+            await makeRequest({
+              url: `${server}/api/video/chunk?name=${name}`,
+              withCredentials: true,
+              method: "POST",
+              headers: {
+                "Content-Type": "video/webm",
+              },
+              data: e.data,
+            });
           });
           recorder.start(1000);
           setRecorders((r) => ({ ...r, [name]: recorder }));

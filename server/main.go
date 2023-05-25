@@ -38,6 +38,7 @@ func main() {
 
 	app.Post("/api/video/chunk", h.HandleChunk)
 	app.Get("/api/video/:name", h.DownloadStreamVideo)
+	app.Get("/api/video/playback/:name", h.PlaybackStreamVideo)
 
 	app.Get("/api/videos", h.GetVideoNames)
 
@@ -46,6 +47,9 @@ func main() {
 	app.Post("/api/auth/streamer/login", h.StreamerLogin)
 	app.Post("/api/auth/streamer/logout", h.StreamerLogout)
 	app.Post("/api/auth/streamer/register", h.StreamerRegister)
+
+	app.Get("/api/streamers", h.GetStreamers)
+	app.Get("/api/streamers/:uid", h.GetStreamer)
 
 	app.Use("/api/ws", h.WebSocketAuth)
 	app.Get("/api/ws", h.WebSocketHandler())

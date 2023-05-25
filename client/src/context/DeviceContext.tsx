@@ -23,14 +23,11 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       if (d.kind === "videoinput") newDevices[d.deviceId] = d.label;
     });
     setDevices(newDevices);
-    return Object.keys(newDevices.length).length !== 0;
+    return Object.keys(newDevices).length !== 0;
   };
 
-  const watchForDeviceChanges = async () =>
-    (navigator.mediaDevices.ondevicechange = () => getDeviceList());
-
   useEffect(() => {
-    watchForDeviceChanges();
+    navigator.mediaDevices.ondevicechange = () => getDeviceList();
   }, []);
 
   return (

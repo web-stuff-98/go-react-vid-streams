@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/url"
 	"os"
@@ -19,7 +18,11 @@ import (
 	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
 )
 
-func (h handler) StreamVideoPlayback(ctx *fiber.Ctx) error {
+// Will retrieve the LAST chunk if range header is not present,
+// since that's where it needs to start from, the video player
+// trackbar will contain the full range of the video
+// up to the present moment
+func (h handler) PlaybackStreamVideo(ctx *fiber.Ctx) error {
 	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
 	defer cancel()
 
@@ -40,7 +43,7 @@ func (h handler) StreamVideoPlayback(ctx *fiber.Ctx) error {
 	}
 	defer conn.Release()
 
-	streamName := ctx.Query("name", "")
+	streamName := ctx.Params("name", "")
 	if streamName == "" || len(streamName) > 24 {
 		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
 	}
@@ -58,6 +61,7 @@ func (h handler) StreamVideoPlayback(ctx *fiber.Ctx) error {
 	}
 
 	// get the start and end byte positions from the range header
+	// I used GPT to shorten this since it was like 50 lines before
 	var maxLength int64 = DBChunkSize
 	var start, end int64
 	if rangeHeader := ctx.Get("Range"); rangeHeader != "" {
@@ -75,23 +79,23 @@ func (h handler) StreamVideoPlayback(ctx *fiber.Ctx) error {
 			end = start + maxLength
 		}
 	} else {
-		// if theres no range header
-		if int(DBChunkSize) < size {
-			end = DBChunkSize
-		} else {
-			end = int64(size)
+		// if theres no range header, send the end
+		end = int64(size)
+		start = end - DBChunkSize
+		if start < 0 {
+			start = 0
 		}
 	}
 
 	// query the db for relevant chunks
 	chunksStart := int(math.Floor(float64(start) / float64(DBChunkSize)))
-	chunksEnd := int(math.Floor(float64(end) / float64(DBChunkSize)))
+	chunksEnd := int(math.Ceil(float64(end) / float64(DBChunkSize)))
 	var allChunkBytes []byte
 	for i := chunksStart; i < chunksEnd; i++ {
 		var bytes pgtype.Bytea
 		if err := conn.QueryRow(rctx, `
 			SELECT bytes FROM vid_chunks WHERE vid_id = $1 AND index = $2; 
-		`).Scan(&bytes); err != nil {
+		`, id, i).Scan(&bytes); err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 		} else {
 			allChunkBytes = append(allChunkBytes, bytes.Bytes...)
@@ -103,7 +107,7 @@ func (h handler) StreamVideoPlayback(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Add("Accept-Ranges", "bytes")
 	ctx.Response().Header.Add("Content-Range", fmt.Sprintf("%v-%v/%v", start, end, size))
 	// send back the bytes that were requested
-	ctx.Write(allChunkBytes[int(start)-(chunksStart*int(DBChunkSize)) : int(end)-chunksStart*int(DBChunkSize)])
+	ctx.Write(allChunkBytes[int(start)-(chunksStart*int(DBChunkSize)) : int(end)-(chunksStart*int(DBChunkSize))])
 
 	return nil
 }
@@ -123,7 +127,6 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 
 	conn, err := h.Pool.Acquire(rctx)
 	if err != nil {
-		log.Println("ERR A:", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 	defer conn.Release()
@@ -134,14 +137,13 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 		SELECT size,id FROM vid_meta WHERE name = $1;
 	`, name).Scan(&size, &id); err != nil {
 		if err != pgx.ErrNoRows {
-			log.Println("ERR B:", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 		} else {
 			return fiber.NewError(fiber.StatusNotFound, "Recording not found")
 		}
 	}
 
-	ctx.Response().Header.SetContentType("application/octet-stream")
+	ctx.Response().Header.SetContentType("video/webm")
 	ctx.Response().Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v.webm"`, url.PathEscape(name)))
 
 	var index, bytesDone int
@@ -167,7 +169,6 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	}
 
 	if err = recursivelyWriteChunksToResponse(); err != nil {
-		log.Println("ERR C:", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 
@@ -245,7 +246,6 @@ func (h handler) HandleChunk(ctx *fiber.Ctx) error {
 	}
 	err = <-errorChan
 	if err != nil {
-		log.Println("ERR:", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	}
 
