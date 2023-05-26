@@ -18,9 +18,14 @@ const Root = () => {
       <nav>
         <ul>
           {server && (
-            <li>
-              <Link to="/">Watch video streams</Link>
-            </li>
+            <>
+              <li>
+                <Link to="/streams?live">Watch live video streams</Link>
+              </li>
+              <li>
+                <Link to="/streams?old">Watch old video streams</Link>
+              </li>
+            </>
           )}
           <li>
             <Link to="/login">Connect to server</Link>
