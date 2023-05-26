@@ -25,7 +25,7 @@ func main() {
 	db := db.Init()
 	rd := rdb.Init()
 	vs := videoServer.Init(db)
-	rtcDC := make(chan string)
+	rtcDC := make(chan string) // WebRTC server socket disconnect UID channel
 	ss := socketServer.Init(rtcDC)
 	rtc := webRTCserver.Init(ss, rtcDC)
 	h := handlers.New(vs, db, rd, ss, rtc)
@@ -40,7 +40,8 @@ func main() {
 	app.Get("/api/video/:name", h.DownloadStreamVideo)
 	app.Get("/api/video/playback/:name", h.PlaybackStreamVideo)
 
-	app.Get("/api/videos", h.GetVideoNames)
+	app.Get("/api/streams/old", h.GetOldStreams)
+	app.Delete("/api/streams/:name", h.DeleteStream)
 
 	app.Post("/api/auth/login", h.InitialLogin)
 	app.Post("/api/auth/refresh", h.Refresh)

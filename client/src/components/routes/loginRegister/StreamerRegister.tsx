@@ -5,9 +5,12 @@ import { IResMsg } from "../../../interfaces/GeneralInterfaces";
 import styles from "./LoginRegister.module.scss";
 import formStyles from "../../../FormClasses.module.scss";
 import ResMsg from "../../shared/ResMsg";
+import { useNavigate } from "react-router";
 
 export default function StreamerRegister() {
   const { streamerRegister } = useAuth();
+
+  const navigate = useNavigate();
 
   const [resMsg, setResMsg] = useState<IResMsg>({});
   const [name, setName] = useState("");
@@ -20,6 +23,7 @@ export default function StreamerRegister() {
     try {
       setResMsg({ pen: true });
       await streamerRegister(name);
+      navigate("/streams?live");
       setResMsg({ pen: false });
     } catch (e) {
       setResMsg({ err: true, msg: `${e}` });

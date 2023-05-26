@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/helpers/authHelpers"
 	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
+	webrtcserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
 )
 
 // Will retrieve the LAST chunk if range header is not present,
@@ -254,7 +255,7 @@ func (h handler) HandleChunk(ctx *fiber.Ctx) error {
 	return nil
 }
 
-func (h handler) GetVideoNames(ctx *fiber.Ctx) error {
+/*func (h handler) GetVideoNames(ctx *fiber.Ctx) error {
 	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
 	defer cancel()
 
@@ -295,4 +296,103 @@ func (h handler) GetVideoNames(ctx *fiber.Ctx) error {
 		ctx.Write(b)
 		return nil
 	}
+}*/
+
+type OutOldStream struct {
+	Name string `json:"name"`
+	Uid  string `json:"streamer_id"`
+}
+
+func (h handler) GetOldStreams(ctx *fiber.Ctx) error {
+	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
+	defer cancel()
+
+	if _, _, err := authHelpers.GetUidAndSid(h.RedisClient, ctx, rctx, h.Pool); err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
+	}
+
+	recvChan := <-h.WebRTCServer.GetActiveStreams
+	activeStreams := <-recvChan
+	close(recvChan)
+
+	var outOldStreams []OutOldStream
+
+	if rows, err := h.Pool.Query(rctx, `
+		SELECT name,streamer FROM vid_meta;
+	`); err != nil {
+		if err != pgx.ErrNoRows {
+			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+		} else {
+			if b, err := json.Marshal(outOldStreams); err != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+			} else {
+				ctx.Response().Header.Add("Content-Type", "application/json")
+				ctx.Write(b)
+				return nil
+			}
+		}
+	} else {
+		for rows.Next() {
+			var name string
+			var streamer_id string
+			if err = rows.Scan(&name, &streamer_id); err != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+			}
+			var found bool
+			for _, si := range activeStreams {
+				if si.StreamName == name {
+					found = true
+				}
+			}
+			if !found {
+				outOldStreams = append(outOldStreams, OutOldStream{
+					Name: name,
+					Uid:  streamer_id,
+				})
+			}
+		}
+	}
+
+	if b, err := json.Marshal(outOldStreams); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	} else {
+		ctx.Response().Header.Add("Content-Type", "application/json")
+		ctx.Write(b)
+		return nil
+	}
+}
+
+func (h handler) DeleteStream(ctx *fiber.Ctx) error {
+	if ctx.Locals("uid").(string) == "" {
+		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
+	}
+
+	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
+	defer cancel()
+
+	conn, err := h.Pool.Acquire(rctx)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
+	defer conn.Release()
+
+	h.WebRTCServer.DeleteStream <- webrtcserver.DeleteStream{
+		Uid:        ctx.Locals("uid").(string),
+		StreamName: ctx.Params("name"),
+	}
+
+	if deleteStmt, err := conn.Conn().Prepare(rctx, "delete_stream_delete_stmt", `
+		DELETE FROM vid_meta WHERE LOWER(name) = LOWER($1);
+	`); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	} else {
+		if _, err = conn.Conn().Exec(rctx, deleteStmt.Name, ctx.Params("name")); err != nil {
+			if err != pgx.ErrNoRows {
+				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+			}
+			return fiber.NewError(fiber.StatusNotFound, "Not found")
+		}
+	}
+
+	return nil
 }

@@ -30,7 +30,7 @@ export default function ServerLogin() {
     try {
       setResMsg({ pen: true });
       await initialLogin(address, password, streamerName);
-      navigate("/");
+      navigate("/streams?live");
       setResMsg({ pen: false });
     } catch (e) {
       setResMsg({ err: true, msg: `${e}` });

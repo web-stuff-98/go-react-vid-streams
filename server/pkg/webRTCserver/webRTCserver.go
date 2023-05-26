@@ -16,6 +16,8 @@ type WebRTCServer struct {
 	SignalWebRTC       chan SignalWebRTC
 	ReturnSignalWebRTC chan ReturnSignalWebRTC
 	MotionUpdate       chan MotionUpdate
+	GetActiveStreams   chan chan []socketValidation.StreamInfo
+	DeleteStream       chan DeleteStream
 }
 
 // ------ Mutex protected ------ //
@@ -56,6 +58,11 @@ type MotionUpdate struct {
 	Motion        bool
 }
 
+type DeleteStream struct {
+	Uid        string
+	StreamName string
+}
+
 // ------ General structs ------ //
 
 type Connection struct {
@@ -72,6 +79,8 @@ func Init(ss *socketServer.SocketServer, rtcDC chan string) *WebRTCServer {
 		SignalWebRTC:       make(chan SignalWebRTC),
 		ReturnSignalWebRTC: make(chan ReturnSignalWebRTC),
 		MotionUpdate:       make(chan MotionUpdate),
+		GetActiveStreams:   make(chan chan []socketValidation.StreamInfo),
+		DeleteStream:       make(chan DeleteStream),
 	}
 	runServer(rtc, ss, rtcDC)
 	return rtc
@@ -84,6 +93,8 @@ func runServer(rtc *WebRTCServer, ss *socketServer.SocketServer, rtcDC chan stri
 	go returningWebRTCSignals(rtc, ss)
 	go watchForSocketDisconnect(rtc, rtcDC)
 	go motionUpdate(rtc, ss)
+	go getActiveStreams(rtc)
+	go deleteStream(rtc, ss)
 }
 
 func watchForSocketDisconnect(rtc *WebRTCServer, rtcDC chan string) {
@@ -230,6 +241,64 @@ func motionUpdate(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 				StreamerID:    data.Uid,
 			},
 			EventName: "WEBRTC_MOTION_UPDATE",
+		}
+
+		rtc.Connections.mutex.Unlock()
+	}
+}
+
+func getActiveStreams(rtc *WebRTCServer) {
+	for {
+		recvChan := <-rtc.GetActiveStreams
+
+		rtc.Connections.mutex.RLock()
+
+		streamsInfo := []socketValidation.StreamInfo{}
+
+		for _, c := range rtc.Connections.data {
+			streamsInfo = append(streamsInfo, c.StreamsInfo...)
+		}
+
+		recvChan <- streamsInfo
+
+		rtc.Connections.mutex.RUnlock()
+	}
+}
+
+func deleteStream(rtc *WebRTCServer, ss *socketServer.SocketServer) {
+	for {
+		data := <-rtc.DeleteStream
+
+		rtc.Connections.mutex.Lock()
+
+		if connData, ok := rtc.Connections.data[data.Uid]; ok {
+			var index int
+			for i, si := range connData.StreamsInfo {
+				if si.StreamName == data.StreamName {
+					index = i
+					break
+				}
+			}
+			newStreamsInfo := connData.StreamsInfo
+			// Theres no array splice method in golang???
+			// Remove the element at index i from a.
+			newStreamsInfo[index] = newStreamsInfo[len(newStreamsInfo)-1] // Copy last element to index i.
+			newStreamsInfo = newStreamsInfo[:len(newStreamsInfo)-1]       // Truncate slice.
+			rtc.Connections.data[data.Uid] = Connection{
+				StreamsInfo: newStreamsInfo,
+			}
+		}
+
+		outData := make(map[string]interface{})
+		outData["name"] = data.StreamName
+
+		ss.SendDataToAll <- socketServer.SendDataToAll{
+			Data: socketMessages.ChangeData{
+				Entity: "STREAM",
+				Method: "DELETE",
+				Data:   outData,
+			},
+			EventName: "CHANGE",
 		}
 
 		rtc.Connections.mutex.Unlock()
