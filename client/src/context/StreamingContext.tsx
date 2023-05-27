@@ -112,28 +112,53 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 
         const currentFrameData = getImageData(name);
 
-        // compare the brightness of the last frame (if it's present) to the current frame
+        // compare the brightness of the last frame (if its present) to the current frame,
+        // but divide the frame data into smaller sections and compare each section individually
+        // rather than comparing the overall brightness between both frames. That makes the
+        // motion detection a bit more accurate. (divide into 10x10 sections)
         if (streams[name].lastFrame) {
-          const pixelDiffs: number[] = [];
+          const lastFrameSections: Uint8ClampedArray[] = [];
+          const currentFrameSections: Uint8ClampedArray[] = [];
           const lastFrameData = streams[name].lastFrame!;
-
-          for (let i = 0; i < currentFrameData.data.length; i += 4) {
-            const rPixelDiff = Math.abs(
-              currentFrameData.data[i] - lastFrameData.data[i]
+          for (let i = 0; i < 10; ) {
+            lastFrameSections.push(
+              lastFrameData.data.slice(
+                currentFrameData.data.length * 0.1 * i,
+                currentFrameData.data.length * 0.1 * (i + 1)
+              )
             );
-            const gPixelDiff = Math.abs(
-              currentFrameData.data[i + 1] - lastFrameData.data[i + 1]
+            currentFrameSections.push(
+              currentFrameData.data.slice(
+                currentFrameData.data.length * 0.1 * i,
+                currentFrameData.data.length * 0.1 * (i + 1)
+              )
             );
-            const bPixelDiff = Math.abs(
-              currentFrameData.data[i + 2] - lastFrameData.data[i + 2]
-            );
-            pixelDiffs.push((rPixelDiff + gPixelDiff + bPixelDiff) / 3);
+            i++;
           }
-
-          motionDetected =
-            pixelDiffs.reduce((acc, val) => acc + val, 0) /
-              (currentFrameData.width * currentFrameData.height) >
-            1;
+          for (let i = 0; i < lastFrameSections.length; ) {
+            const ls = lastFrameSections[i];
+            const cs = currentFrameSections[i];
+            const pixelDiffs: number[] = [];
+            for (let i = 0; i < cs.length; i += 4) {
+              const rPd = Math.abs(cs[i] - ls[i]);
+              const gPd = Math.abs(cs[i + 1] - ls[i + 1]);
+              const bPd = Math.abs(cs[i + 2] - ls[i + 2]);
+              pixelDiffs.push((rPd + gPd + bPd) / 3);
+            }
+            if (!motionDetected) {
+              if (
+                pixelDiffs.reduce((acc, val) => acc + val, 0) /
+                  (currentFrameData.width *
+                    0.1 *
+                    (currentFrameData.height * 0.1)) >
+                1
+              ) {
+                motionDetected = true;
+                i = lastFrameSections.length;
+              }
+            }
+            i++;
+          }
         }
 
         const motion =
@@ -160,8 +185,6 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
         const s = streamsRef.current;
         s[name].lastFrame = currentFrameData;
         s[name].motion = motion;
-        // if motion was last detected in the last 5 seconds, motion should still
-        // be considered detected
         if (motionDetected) s[name].motionLastDetected = new Date().getTime();
         streamsRef.current = s;
       }
