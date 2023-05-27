@@ -17,6 +17,7 @@ type StreamInfo = {
   motionLastDetected?: number;
   lastFrame?: ImageData;
   deviceId: string;
+  lastPart?: Blob;
 };
 
 export const StreamingContext = createContext<{
@@ -204,22 +205,35 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       if (recorders[name] === undefined) {
         if (streams[name]) {
           const recorder = new MediaRecorder(streams[name].stream, {
-            mimeType: "video/webm;codecs=vp9",
+            mimeType: "video/webm",
           });
           recorder.addEventListener("dataavailable", async (e) => {
             if (streams[name].motion) {
-              await makeRequest({
-                url: `${server}/api/video/chunk?name=${name}`,
-                withCredentials: true,
-                method: "POST",
-                headers: {
-                  "Content-Type": "video/webm;codecs=vp9",
-                },
-                data: e.data,
-              });
+              if (streams[name].lastPart) {
+                /*const data = await ysFixWebmDuration(
+                  new Blob([streams[name].lastPart as Blob, e.data], {
+                    type: "video/webm",
+                  }),
+                  1000
+                );*/
+                await makeRequest({
+                  url: `${server}/api/video/chunk?name=${name}`,
+                  withCredentials: true,
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "video/webm",
+                  },
+                  data: new Blob([streams[name].lastPart as Blob, e.data], {
+                    type: "video/webm",
+                  }),
+                });
+                streams[name].lastPart = undefined;
+              } else {
+                streams[name].lastPart = e.data;
+              }
             }
           });
-          recorder.start(1000);
+          recorder.start(500);
           setRecorders((r) => ({ ...r, [name]: recorder }));
         } else {
           console.log("Not present");

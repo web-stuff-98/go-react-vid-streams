@@ -4,7 +4,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useStreaming } from "../../../context/StreamingContext";
 import { useStreams } from "../../../context/StreamsContext";
 import { FaDownload } from "react-icons/fa";
-import { AiFillEye, AiOutlineClose } from "react-icons/ai";
+import { AiOutlineClose } from "react-icons/ai";
 import { useStreamers } from "../../../context/StreamersContext";
 import { useSearchParams } from "react-router-dom";
 import ResMsg from "../../shared/ResMsg";
@@ -28,7 +28,7 @@ function WatchStreamWithTrackbarModal({
         <video width="320" height="240" controls>
           <source
             src={`${server}/api/video/playback/${name}`}
-            type="video/mp4"
+            type="video/webm"
           />
           Your browser does not support the video tag
         </video>
@@ -61,15 +61,6 @@ function VideoDownloadButton({ name }: { name: string }) {
   );
 }
 
-function WatchVideoButton({ onClick }: { onClick: Function }) {
-  return (
-    <b onClick={() => onClick()}>
-      <AiFillEye />
-      Watch motion recording
-    </b>
-  );
-}
-
 function VideoStream({ stream }: { stream: MediaStream }) {
   const vidRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -87,13 +78,11 @@ const LiveStreamWindow = ({
   stream,
   motion,
   uid,
-  watchClicked,
 }: {
   name: string;
   stream?: MediaStream;
   motion?: boolean;
   uid: string;
-  watchClicked: (name: string) => void;
 }) => {
   const { getStreamerName } = useStreamers();
 
@@ -104,7 +93,6 @@ const LiveStreamWindow = ({
         {name}
         {motion && <> - Motion detected</>}
         <VideoDownloadButton name={name} />
-        <WatchVideoButton onClick={() => watchClicked(name)} />
       </div>
       {
         <span className={styles["live-indicator"]}>
@@ -128,13 +116,13 @@ const OldStreamVideo = ({
 
   return (
     <li>
-       <video width="320" height="240" controls>
-          <source
-            src={`${server}/api/video/playback/${name}`}
-            type="video/mp4"
-          />
-          Your browser does not support the video tag
-        </video>
+      <video width="320" height="240" controls>
+        <source
+          src={`${server}/api/video/playback/${name}`}
+          type="video/webm"
+        />
+        Your browser does not support the video tag
+      </video>
       <div>
         {name}
         <VideoDownloadButton name={name} />
@@ -153,12 +141,6 @@ function LiveStreams() {
   const { peers } = useStreams();
   const { uid } = useAuth();
 
-  const [watchVideoStreamName, setWatchVideoStreamName] = useState("");
-
-  const watchClicked = (name: string) => {
-    setWatchVideoStreamName(name);
-  };
-
   return (
     <>
       {peers &&
@@ -170,7 +152,6 @@ function LiveStreams() {
           peers.map((p) =>
             p.streams?.map((s) => (
               <LiveStreamWindow
-                watchClicked={watchClicked}
                 motion={s.motion}
                 key={s.name}
                 name={s.name}
@@ -182,7 +163,6 @@ function LiveStreams() {
         {Object.keys(streams).map((name) => (
           <LiveStreamWindow
             uid={uid}
-            watchClicked={watchClicked}
             motion={streams[name].motion}
             key={name}
             name={name}
@@ -190,13 +170,6 @@ function LiveStreams() {
           />
         ))}
       </ul>
-      {watchVideoStreamName && (
-        <WatchStreamWithTrackbarModal
-          closeButtonClicked={() => setWatchVideoStreamName("")}
-          name={watchVideoStreamName}
-        />
-      )}
-      {watchVideoStreamName && <div className="modal-backdrop" />}
     </>
   );
 }
