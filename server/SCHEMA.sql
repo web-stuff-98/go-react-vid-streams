@@ -14,6 +14,9 @@ CREATE TABLE vid_meta (
     size INT NOT NULL DEFAULT 0,
     name VARCHAR(24) NOT NULL,
     streamer UUID REFERENCES streamers(id) ON DELETE CASCADE,
+    /* Default 1, because a row in vid_meta will only be created once the client
+    has sent a piece of data, and the client sends data as second long blobs*/
+    seconds INT NOT NULL DEFAULT 1,
     active BOOLEAN DEFAULT FALSE
 );
 

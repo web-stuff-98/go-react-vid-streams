@@ -1,4 +1,4 @@
-import styles from "./StreamerSetup.module.scss";
+import styles from "./AddStream.module.scss";
 import formStyles from "../../../FormClasses.module.scss";
 import { ChangeEvent, useEffect, useState } from "react";
 import { useDevices } from "../../../context/DeviceContext";
@@ -6,7 +6,7 @@ import { IResMsg } from "../../../interfaces/GeneralInterfaces";
 import { useStreaming } from "../../../context/StreamingContext";
 import ResMsg from "../../shared/ResMsg";
 
-export default function StreamerSetup() {
+export default function AddStream() {
   const { getDeviceList, devices } = useDevices();
   const { addStream } = useStreaming();
 

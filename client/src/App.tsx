@@ -16,18 +16,18 @@ import ViewStreams from "./components/routes/viewStreams/ViewStreams";
 import ServerLogin from "./components/routes/loginRegister/ServerLogin";
 import StreamerLogin from "./components/routes/loginRegister/StreamerLogin";
 import StreamerRegister from "./components/routes/loginRegister/StreamerRegister";
-import StreamerSetup from "./components/routes/streamerSetup/StreamerSetup";
+import AddStream from "./components/routes/addStream/AddStream";
 
 function App() {
   const router = createBrowserRouter(
     createRoutesFromElements(
       <Route path="/" element={<Root />}>
         <Route index element={<ServerLogin />} />
-        <Route path="/streams?live" element={<ViewStreams />} />
-        <Route path="/streams?old" element={<ViewStreams />} />
+        <Route path="/streams" element={<ViewStreams />} />
+        <Route path="/streams" element={<ViewStreams />} />
         <Route path="/streamer/login" element={<StreamerLogin />} />
         <Route path="/streamer/register" element={<StreamerRegister />} />
-        <Route path="/streamer/setup" element={<StreamerSetup />} />
+        <Route path="/streamer/add" element={<AddStream />} />
       </Route>
     )
   );

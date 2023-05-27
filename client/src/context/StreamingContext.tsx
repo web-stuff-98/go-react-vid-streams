@@ -3,6 +3,7 @@ import type { ReactNode, MutableRefObject } from "react";
 import { useAuth } from "./AuthContext";
 import { makeRequest } from "../services/makeRequest";
 import useSocket from "./SocketContext";
+import ysFixWebmDuration from "fix-webm-duration";
 
 /*
 This handles streaming the users own streams to the server.
@@ -180,19 +181,20 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       if (recorders[name] === undefined) {
         if (streams[name]) {
           const recorder = new MediaRecorder(streams[name].stream, {
-            mimeType: "video/webm",
+            mimeType: "video/webm;codecs=vp9",
           });
           recorder.addEventListener("dataavailable", async (e) => {
-            //if (streams[name].motion)
-            await makeRequest({
-              url: `${server}/api/video/chunk?name=${name}`,
-              withCredentials: true,
-              method: "POST",
-              headers: {
-                "Content-Type": "video/webm",
-              },
-              data: e.data,
-            });
+            if (streams[name].motion) {
+              await makeRequest({
+                url: `${server}/api/video/chunk?name=${name}`,
+                withCredentials: true,
+                method: "POST",
+                headers: {
+                  "Content-Type": "video/webm;codecs=vp9",
+                },
+                data: e.data,
+              });
+            }
           });
           recorder.start(1000);
           setRecorders((r) => ({ ...r, [name]: recorder }));

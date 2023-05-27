@@ -16,7 +16,7 @@ type WebRTCServer struct {
 	SignalWebRTC       chan SignalWebRTC
 	ReturnSignalWebRTC chan ReturnSignalWebRTC
 	MotionUpdate       chan MotionUpdate
-	GetActiveStreams   chan chan []socketValidation.StreamInfo
+	GetActiveStreams   chan GetActiveStreams
 	DeleteStream       chan DeleteStream
 }
 
@@ -63,6 +63,10 @@ type DeleteStream struct {
 	StreamName string
 }
 
+type GetActiveStreams struct {
+	RecvChan chan []socketValidation.StreamInfo
+}
+
 // ------ General structs ------ //
 
 type Connection struct {
@@ -79,7 +83,7 @@ func Init(ss *socketServer.SocketServer, rtcDC chan string) *WebRTCServer {
 		SignalWebRTC:       make(chan SignalWebRTC),
 		ReturnSignalWebRTC: make(chan ReturnSignalWebRTC),
 		MotionUpdate:       make(chan MotionUpdate),
-		GetActiveStreams:   make(chan chan []socketValidation.StreamInfo),
+		GetActiveStreams:   make(chan GetActiveStreams),
 		DeleteStream:       make(chan DeleteStream),
 	}
 	runServer(rtc, ss, rtcDC)
@@ -249,7 +253,7 @@ func motionUpdate(rtc *WebRTCServer, ss *socketServer.SocketServer) {
 
 func getActiveStreams(rtc *WebRTCServer) {
 	for {
-		recvChan := <-rtc.GetActiveStreams
+		data := <-rtc.GetActiveStreams
 
 		rtc.Connections.mutex.RLock()
 
@@ -259,7 +263,7 @@ func getActiveStreams(rtc *WebRTCServer) {
 			streamsInfo = append(streamsInfo, c.StreamsInfo...)
 		}
 
-		recvChan <- streamsInfo
+		data.RecvChan <- streamsInfo
 
 		rtc.Connections.mutex.RUnlock()
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/url"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v5"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/helpers/authHelpers"
+	socketvalidation "github.com/web-stuff-98/go-react-vid-streams/pkg/socketValidation"
 	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
 	webrtcserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
 )
@@ -103,7 +105,7 @@ func (h handler) PlaybackStreamVideo(ctx *fiber.Ctx) error {
 		}
 	}
 
-	ctx.Response().Header.Add("Content-Type", "video/webm")
+	ctx.Response().Header.Add("Content-Type", "video/webm;codecs=vp9")
 	ctx.Response().Header.Add("Content-Length", fmt.Sprintf("%v", size))
 	ctx.Response().Header.Add("Accept-Ranges", "bytes")
 	ctx.Response().Header.Add("Content-Range", fmt.Sprintf("%v-%v/%v", start, end, size))
@@ -144,7 +146,7 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 		}
 	}
 
-	ctx.Response().Header.SetContentType("video/webm")
+	ctx.Response().Header.SetContentType("video/webm;codecs=vp9")
 	ctx.Response().Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v.webm"`, url.PathEscape(name)))
 
 	var index, bytesDone int
@@ -182,7 +184,7 @@ func (h handler) TestGetVideo(ctx *fiber.Ctx) error {
 	if b, err := ioutil.ReadFile("testvid.mp4"); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error - failed to locate file")
 	} else {
-		ctx.Response().Header.Add("Content-Type", "video/webm")
+		ctx.Response().Header.Add("Content-Type", "video/webm;codecs=vp9")
 		ctx.Response().Header.Add("Content-Length", fmt.Sprintf("%v", len(b)))
 		ctx.Response().Header.Add("Accept-Ranges", "bytes")
 
@@ -311,9 +313,17 @@ func (h handler) GetOldStreams(ctx *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	recvChan := <-h.WebRTCServer.GetActiveStreams
+	log.Println("Channel")
+
+	recvChan := make(chan []socketvalidation.StreamInfo, 1)
+	h.WebRTCServer.GetActiveStreams <- webrtcserver.GetActiveStreams{
+		RecvChan: recvChan,
+	}
 	activeStreams := <-recvChan
+
 	close(recvChan)
+
+	log.Println("Channel through")
 
 	var outOldStreams []OutOldStream
 

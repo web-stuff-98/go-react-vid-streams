@@ -17,6 +17,9 @@ const Root = () => {
     <>
       <nav>
         <ul>
+          <li>
+            <Link to="/">Connect to server</Link>
+          </li>
           {server && (
             <>
               <li>
@@ -25,24 +28,17 @@ const Root = () => {
               <li>
                 <Link to="/streams?old">Watch old video streams</Link>
               </li>
+              <li>
+                <Link to="/streamer/login">Login to streamer</Link>
+              </li>
+              <li>
+                <Link to="/streamer/register">Register a streamer</Link>
+              </li>
             </>
-          )}
-          <li>
-            <Link to="/login">Connect to server</Link>
-          </li>
-          {server && (
-            <li>
-              <Link to="/streamer/login">Login to streamer</Link>
-            </li>
-          )}
-          {server && (
-            <li>
-              <Link to="/streamer/register">Register a streamer</Link>
-            </li>
           )}
           {uid && (
             <li>
-              <Link to="/streamer/setup">Setup streamer</Link>
+              <Link to="/streamer/add">Add stream</Link>
             </li>
           )}
         </ul>

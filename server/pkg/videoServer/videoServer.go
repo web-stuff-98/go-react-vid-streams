@@ -63,6 +63,7 @@ func runServer(vs *VideoServer, db *pgxpool.Pool) {
 
 // ------ Loops ------ //
 
+// need to add a waitgroup to this, or a mlock when writing to db
 func handleChunk(vs *VideoServer, db *pgxpool.Pool) {
 	chunkSize, err := strconv.Atoi(os.Getenv("VID_CHUNK_SIZE"))
 	if err != nil {
@@ -107,11 +108,12 @@ func handleChunk(vs *VideoServer, db *pgxpool.Pool) {
 		var id string
 		var preSavedSize, index int
 		if exists {
+			// increment seconds by 1, because chunks come in every second...
 			err = db.QueryRow(ctx, `
-				UPDATE vid_meta SET size = size + $1 WHERE (name = $2 AND streamer = $3) RETURNING id,size - $1;
+				UPDATE vid_meta SET size = size + $1, seconds = seconds + 1 WHERE (name = $2 AND streamer = $3) RETURNING id,size - $1;
 			`, len(data.Data), data.Name, data.Uid).Scan(&id, &preSavedSize)
 			if err != nil {
-				errored("Failed in execution of handle chunk update meta size statement")
+				errored("Failed in execution of handle chunk update meta statement")
 				continue
 			}
 		} else {

@@ -99,11 +99,6 @@ const LiveStreamWindow = ({
 
   return (
     <li>
-      {
-        <span className={styles["live-indicator"]}>
-          Active stream from {getStreamerName(uid)}
-        </span>
-      }
       {stream && <VideoStream stream={stream} />}
       <div>
         {name}
@@ -111,6 +106,11 @@ const LiveStreamWindow = ({
         <VideoDownloadButton name={name} />
         <WatchVideoButton onClick={() => watchClicked(name)} />
       </div>
+      {
+        <span className={styles["live-indicator"]}>
+          Active stream from {getStreamerName(uid)}
+        </span>
+      }
     </li>
   );
 };
@@ -118,26 +118,32 @@ const LiveStreamWindow = ({
 const OldStreamVideo = ({
   name,
   uid,
-  watchClicked,
 }: {
   name: string;
   uid: string;
   watchClicked: (name: string) => void;
 }) => {
+  const { server } = useAuth();
   const { getStreamerName } = useStreamers();
 
   return (
     <li>
+       <video width="320" height="240" controls>
+          <source
+            src={`${server}/api/video/playback/${name}`}
+            type="video/mp4"
+          />
+          Your browser does not support the video tag
+        </video>
+      <div>
+        {name}
+        <VideoDownloadButton name={name} />
+      </div>
       {
         <span className={styles["inactive-indicator"]}>
           Inactive stream from {getStreamerName(uid)}
         </span>
       }
-      <div>
-        {name}
-        <VideoDownloadButton name={name} />
-        <WatchVideoButton onClick={() => watchClicked(name)} />
-      </div>
     </li>
   );
 };
@@ -154,7 +160,7 @@ function LiveStreams() {
   };
 
   return (
-    <div className={styles.container}>
+    <>
       {peers &&
         peers.length > 0 &&
         JSON.stringify(peers.map((p) => ({ ...p, peer: undefined })))}
@@ -191,7 +197,7 @@ function LiveStreams() {
         />
       )}
       {watchVideoStreamName && <div className="modal-backdrop" />}
-    </div>
+    </>
   );
 }
 
@@ -252,33 +258,34 @@ function OldStreams() {
   }, [socket]);
 
   return (
-    <div className={styles.container}>
-      {streams.map((s) => (
-        <OldStreamVideo
-          name={s.name}
-          uid={s.streamer_id}
-          watchClicked={(name: string) => watchClicked(name)}
-        />
-      ))}
-      {watchVideoStreamName && (
-        <WatchStreamWithTrackbarModal
-          closeButtonClicked={() => setWatchVideoStreamName("")}
-          name={watchVideoStreamName}
-        />
-      )}
+    <>
+      <ul className={styles["streams-list"]}>
+        {streams.map((s) => (
+          <OldStreamVideo
+            name={s.name}
+            uid={s.streamer_id}
+            watchClicked={(name: string) => watchClicked(name)}
+          />
+        ))}
+        {watchVideoStreamName && (
+          <WatchStreamWithTrackbarModal
+            closeButtonClicked={() => setWatchVideoStreamName("")}
+            name={watchVideoStreamName}
+          />
+        )}
+      </ul>
       {watchVideoStreamName && <div className="modal-backdrop" />}
       <ResMsg msg={resMsg} />
-    </div>
+    </>
   );
 }
 
 export default function ViewStreams() {
   const [searchParams] = useSearchParams();
-
   return (
-    <>
+    <div className={styles["container"]}>
       {searchParams.has("live") && <LiveStreams />}
       {searchParams.has("old") && <OldStreams />}
-    </>
+    </div>
   );
 }
