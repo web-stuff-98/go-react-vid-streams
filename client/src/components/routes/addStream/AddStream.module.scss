@@ -3,7 +3,7 @@
   flex-direction: column;
   width: 10rem;
   height: fit-content;
-  border: 1px solid var(--border-medium);
+  border: 2px solid var(--border-medium);
   display: flex;
   border-radius: var(--border-radius-md);
   margin: auto;
@@ -30,7 +30,7 @@
       border-bottom: none;
     }
     li:hover {
-        background: var(--border-pale);
+      background: var(--border-pale);
     }
   }
 }

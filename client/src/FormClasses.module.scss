@@ -6,7 +6,10 @@
 }
 
 .input-label {
-  gap: var(--gap-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  align-items: center;
   input,
   select,
   option,

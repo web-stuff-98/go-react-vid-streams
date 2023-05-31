@@ -61,7 +61,12 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
     if (Object.values(streams).find((s) => s.deviceId === deviceId))
       throw new Error("You're already streaming from the selected device");
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId },
+      video: {
+        deviceId,
+        frameRate: { ideal: 15, max: 20 },
+        facingMode: "environment",
+        width: { ideal: 720 },
+      },
     });
     setStreams((s) => ({
       ...s,
@@ -91,15 +96,15 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 
   const getImageData = (name: string) => {
     const canvas = document.createElement("canvas");
-    canvas.width = 100;
-    canvas.height = 60;
+    canvas.width = 200;
+    canvas.height = 120;
     const ctx = canvas.getContext("2d");
     ctx!.drawImage(
       document.getElementById(`vid-${name}`) as HTMLVideoElement,
       0,
       0
     );
-    const imageData = ctx!.getImageData(0, 0, 100, 60);
+    const imageData = ctx!.getImageData(0, 0, 200, 120);
     return imageData;
   };
 
@@ -109,54 +114,60 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       for await (const name of Object.keys(streams)) {
         let motionDetected = false;
 
-        const currentFrameData = getImageData(name);
+        // cf = current frame
+        const cf = getImageData(name);
 
-        // compare the brightness of the last frame (if its present) to the current frame,
-        // but divide the frame data into smaller sections and compare each section individually
-        // rather than comparing the overall brightness between both frames. That makes the
-        // motion detection a bit more accurate. (divide into 10x10 sections)
+        // split the last frame and the current frame into 20x20
+        // sections and compare the average pixel difference between
+        // sections individually. If the pixel difference is above the
+        // threshold in any of the sections then motion is detected.
+        const numSecs = 20;
+        const secsDiv = 1 / numSecs;
         if (streams[name].lastFrame) {
-          const lastFrameSections: Uint8ClampedArray[] = [];
-          const currentFrameSections: Uint8ClampedArray[] = [];
-          const lastFrameData = streams[name].lastFrame!;
-          for (let i = 0; i < 10; ) {
-            lastFrameSections.push(
-              lastFrameData.data.slice(
-                currentFrameData.data.length * 0.1 * i,
-                currentFrameData.data.length * 0.1 * (i + 1)
+          // lfSecs = last frame sections
+          const lfSecs: Uint8ClampedArray[] = [];
+          // cfSecs = last frame sections
+          const cfSecs: Uint8ClampedArray[] = [];
+          // lf = last frame
+          const lf = streams[name].lastFrame!;
+          for (let i = 0; i < numSecs; i++) {
+            lfSecs.push(
+              lf.data.slice(
+                cf.data.length * secsDiv * i,
+                cf.data.length * secsDiv * (i + 1)
               )
             );
-            currentFrameSections.push(
-              currentFrameData.data.slice(
-                currentFrameData.data.length * 0.1 * i,
-                currentFrameData.data.length * 0.1 * (i + 1)
+            cfSecs.push(
+              cf.data.slice(
+                cf.data.length * secsDiv * i,
+                cf.data.length * secsDiv * (i + 1)
               )
             );
-            i++;
           }
-          for (let i = 0; i < lastFrameSections.length; ) {
-            const ls = lastFrameSections[i];
-            const cs = currentFrameSections[i];
-            const pixelDiffs: number[] = [];
+          // compare the sections
+          for (let i = 0; i < lfSecs.length; i++) {
+            const ls = lfSecs[i];
+            const cs = cfSecs[i];
+            const pDiffs: number[] = [];
             for (let i = 0; i < cs.length; i += 4) {
               const rPd = Math.abs(cs[i] - ls[i]);
               const gPd = Math.abs(cs[i + 1] - ls[i + 1]);
               const bPd = Math.abs(cs[i + 2] - ls[i + 2]);
-              pixelDiffs.push((rPd + gPd + bPd) / 3);
+              pDiffs.push((rPd + gPd + bPd) / 3);
             }
             if (!motionDetected) {
               if (
-                pixelDiffs.reduce((acc, val) => acc + val, 0) /
-                  (currentFrameData.width *
-                    0.1 *
-                    (currentFrameData.height * 0.1)) >
+                pDiffs.reduce((acc, val) => acc + val, 0) /
+                  (cf.width * secsDiv * (cf.height * secsDiv)) >
                 1
               ) {
                 motionDetected = true;
-                i = lastFrameSections.length;
+                // go to end of loop by setting iterator to end
+                // since motion was detected other sections do
+                // not need to be compared
+                i = lfSecs.length;
               }
             }
-            i++;
           }
         }
 
@@ -177,12 +188,12 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 
         setStreams((s) => {
           const newStreams = s;
-          newStreams[name].lastFrame = currentFrameData;
+          newStreams[name].lastFrame = cf;
           newStreams[name].motion = motion;
           return { ...newStreams };
         });
         const s = streamsRef.current;
-        s[name].lastFrame = currentFrameData;
+        s[name].lastFrame = cf;
         s[name].motion = motion;
         if (motionDetected) s[name].motionLastDetected = new Date().getTime();
         streamsRef.current = s;
@@ -207,13 +218,13 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
           });
           recorder.addEventListener("dataavailable", async (e) => {
             //if (streams[name].motion)
-              await makeRequest({
-                url: `${server}/api/video/chunk?name=${name}`,
-                withCredentials: true,
-                method: "POST",
-                headers: { "Content-Type": "video/webm" },
-                data: e.data,
-              });
+            await makeRequest({
+              url: `${server}/api/video/chunk?name=${name}`,
+              withCredentials: true,
+              method: "POST",
+              headers: { "Content-Type": "video/webm" },
+              data: e.data,
+            });
           });
           recorder.start(1000);
           setRecorders((r) => ({ ...r, [name]: recorder }));
@@ -252,9 +263,9 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
 
 // I had to use a hidden video window to grab pixel data because using
 // the grabImage() function or whatever it's called on ImageBitmap was just
-// returning empty values for every pixel no matter what.
-// The video window is made to be really small for performance because it's
-// a lot of pixels for a 1920x1080 image.
+// returning empty values for every pixel no matter what. The video window
+// is made to be really small because it's a lot of pixels for a 1920x1080
+// image, and multiple streams from one device could be present.
 function HiddenVideoWindow({
   stream,
   name,
@@ -273,8 +284,8 @@ function HiddenVideoWindow({
       style={{ position: "fixed", filter: "opacity(0)" }}
       playsInline
       autoPlay
-      width={100}
-      height={60}
+      width={200}
+      height={120}
       id={`vid-${name}`}
       ref={vidRef}
     />

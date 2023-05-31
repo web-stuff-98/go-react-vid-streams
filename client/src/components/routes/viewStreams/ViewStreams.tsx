@@ -57,30 +57,29 @@ function WatchStreamWithTrackbarModal({
 function VideoDownloadButton({ name }: { name: string }) {
   const { server } = useAuth();
 
+  // index is the 256mb section (0 for recordings smaller than 256mb)
+  const downloadSection = async (index: number, sectionSeconds: number) => {
+    const part = await makeRequest({
+      url: `${server}/api/video/${name}?i=${index}`,
+      responseType: "arraybuffer",
+      withCredentials: true,
+    });
+    // fix the duration of the video section (the duration will be off
+    // for long videos that are still recording because the size retreived
+    // will be out of sync but whatever)
+    const blob = await ysDurationFix(
+      new Blob([part], { type: "video/webm" }),
+      sectionSeconds * 1000
+    );
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${name}-section-${index}-${sectionSeconds}s`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   const downloadVideo = async () => {
-    // index is the 256mb section (0 for recordings smaller than 256mb)
-    const downloadSection = async (index: number, sectionSeconds: number) => {
-      console.log("INDEX = ", index);
-      const part = await makeRequest({
-        url: `${server}/api/video/${name}?i=${index}`,
-        responseType: "arraybuffer",
-        withCredentials: true,
-      });
-      // fix the duration of the video section (the duration will be off
-      // for long videos that are still recording because the size retreived
-      // will be out of sync but whatever)
-      const blob = await ysDurationFix(
-        new Blob([part], { type: "video/webm" }),
-        sectionSeconds * 1000
-      );
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      // takes a string?
-      a.download = "true";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
     const vidMeta: {
       size: number;
       seconds: number;
@@ -282,13 +281,15 @@ function OldStreams() {
   return (
     <>
       <ul className={styles["streams-list"]}>
-        {streams.map((s) => (
-          <OldStreamVideo
-            name={s.name}
-            uid={s.streamer_id}
-            watchClicked={(name: string) => watchClicked(name)}
-          />
-        ))}
+        {streams &&
+          Array.isArray(streams) &&
+          streams.map((s) => (
+            <OldStreamVideo
+              name={s.name}
+              uid={s.streamer_id}
+              watchClicked={(name: string) => watchClicked(name)}
+            />
+          ))}
         {watchVideoStreamName && (
           <WatchStreamWithTrackbarModal
             closeButtonClicked={() => setWatchVideoStreamName("")}
@@ -306,8 +307,13 @@ export default function ViewStreams() {
   const [searchParams] = useSearchParams();
   return (
     <div className={styles["container"]}>
-      {searchParams.has("live") && <LiveStreams />}
-      {searchParams.has("old") && <OldStreams />}
+      {searchParams.has("live") ? (
+        <LiveStreams />
+      ) : searchParams.has("old") ? (
+        <OldStreams />
+      ) : (
+        "No url param present"
+      )}
     </div>
   );
 }
