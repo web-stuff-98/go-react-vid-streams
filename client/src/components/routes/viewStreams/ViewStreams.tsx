@@ -12,6 +12,7 @@ import { makeRequest } from "../../../services/makeRequest";
 import { IResMsg } from "../../../interfaces/GeneralInterfaces";
 import useSocket from "../../../context/SocketContext";
 import { isChangeData } from "../../../socketComms/InterpretEvent";
+import ysDurationFix from "fix-webm-duration";
 
 function WatchStreamWithTrackbarModal({
   name,
@@ -43,21 +44,69 @@ function WatchStreamWithTrackbarModal({
   );
 }
 
+// Because WebM duration is fucked up when it comes from
+// MediaRecorder, fix-webm-duration needs to be used....
+// however fix-webm-duration does not work with larger than
+// 2gb files because of browser compatibility or something
+// like that... so if the video is larger than 2gb then the
+// video has to be split up into seperate 2gb downloads that
+// trigger automatically after the previous 2gb section has
+// completed, fix-webm-duration runs on each downloaded section
+// to repair the missing duration binary metadata... too dumb
+// to add this binary metadata to it myself
 function VideoDownloadButton({ name }: { name: string }) {
   const { server } = useAuth();
 
-  const hiddenDownloadLink = useRef<HTMLAnchorElement>(null);
+  // index is the 2gb section (0 for recordings smaller than 2gb)
+  const downloadSection = async (index: number, sectionSeconds: number) => {
+    const part = await makeRequest({
+      url: `${server}/api/video/${name}?i=${index}`,
+      responseType: "arraybuffer",
+      withCredentials: true,
+    });
+    // fix the duration of the video section (the duration will be off
+    // for long videos that are still recording because the size retreived
+    // will be out of sync but whatever)
+    const blob = await ysDurationFix(
+      new Blob([part], { type: "video/webm" }),
+      sectionSeconds * 1000
+    );
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    // takes a string?
+    a.download = "true";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadVideo = async () => {
+    const vidMeta: {
+      size: number;
+      seconds: number;
+    } = await makeRequest({
+      url: `${server}/api/video/meta/${name}`,
+    });
+    // figure out how many 2gb sections there are to the entire video and download them
+    const twoGb = 2 * 1024 * 1024 * 1024;
+    const divSections = vidMeta.size / twoGb;
+    const numSections = Math.floor(divSections);
+    const sectionDuration = Math.ceil(vidMeta.seconds / divSections);
+    let remainingSeconds = vidMeta.seconds;
+    for (let i = 0; i < numSections; i++) {
+      await downloadSection(
+        i,
+        i === numSections ? remainingSeconds : sectionDuration
+      );
+      remainingSeconds -= sectionDuration;
+    }
+  };
+
   return (
-    <a
-      aria-label="Download attachment"
-      className={styles["download"]}
-      download
-      href={`${server}/api/video/${name}`}
-      ref={hiddenDownloadLink}
-    >
+    <b aria-label="Download attachment" onClick={() => downloadVideo()}>
       <FaDownload />
       Download motion recording
-    </a>
+    </b>
   );
 }
 

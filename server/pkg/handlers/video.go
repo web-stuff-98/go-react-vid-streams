@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,14 +18,19 @@ import (
 	webrtcserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
 )
 
-// send the video back as an octet stream starting from the first chunk
-// but only send the bytes that were present when the HTTP request was received,
-// so that the video the user will get back is the recording up to roughly the point
-// where they clicked the download button
+// doesn't download the entire video stream for >2g, downloads a video stream 2gb section
+// since javascript fix-webm-duration wont work with larger than 2gb files....
+// the index of the 2gb section needs to be present in the URL param or it will default
+// to the first 2gbs of the video (index 0)
 func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	name := ctx.Params("name")
 	if name == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
+	}
+	iRaw := ctx.Query("i", "0")
+	i, err := strconv.Atoi(iRaw)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid 2gbs section index query param")
 	}
 
 	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
@@ -49,7 +55,7 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	}
 
 	ctx.Response().Header.SetContentType("video/webm")
-	ctx.Response().Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v.webm"`, url.PathEscape(name)))
+	ctx.Response().Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v-%v-%v.webm"`, url.PathEscape(name), "section", iRaw))
 
 	var index, bytesDone int
 	var chunkBytes pgtype.Bytea
@@ -78,6 +84,50 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	}
 
 	rctx.Done()
+	return nil
+}
+
+type OutVideoMeta struct {
+	Size    int `json:"size"`
+	Seconds int `json:"seconds"`
+}
+
+func (h handler) GetVideoMeta(ctx *fiber.Ctx) error {
+	name := ctx.Params("name")
+	if name == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
+	}
+
+	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
+	defer cancel()
+
+	conn, err := h.Pool.Acquire(rctx)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
+	defer conn.Release()
+
+	var size, seconds int
+	if err = conn.QueryRow(rctx, `
+		SELECT size,seconds FROM vid_meta WHERE name = $1;
+	`, name).Scan(&size, &seconds); err != nil {
+		if err != pgx.ErrNoRows {
+			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+		} else {
+			return fiber.NewError(fiber.StatusNotFound, "Recording not found")
+		}
+	}
+
+	if b, err := json.Marshal(OutVideoMeta{
+		Size:    size,
+		Seconds: seconds,
+	}); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	} else {
+		ctx.Response().Header.Add("Content-Type", "application/json")
+		ctx.Write(b)
+	}
+
 	return nil
 }
 

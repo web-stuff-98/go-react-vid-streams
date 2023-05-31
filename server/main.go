@@ -38,7 +38,7 @@ func main() {
 
 	app.Post("/api/video/chunk", h.HandleChunk)
 	app.Get("/api/video/:name", h.DownloadStreamVideo)
-	app.Get("/api/video/playback/:name", h.PlaybackStreamVideo)
+	app.Get("/api/video/meta/:name", h.DownloadStreamVideo)
 
 	app.Get("/api/streams/old", h.GetOldStreams)
 	app.Delete("/api/streams/:name", h.DeleteStream)

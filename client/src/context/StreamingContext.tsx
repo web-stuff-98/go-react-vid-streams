@@ -3,7 +3,6 @@ import type { ReactNode, MutableRefObject } from "react";
 import { useAuth } from "./AuthContext";
 import { makeRequest } from "../services/makeRequest";
 import useSocket from "./SocketContext";
-import ysFixWebmDuration from "fix-webm-duration";
 
 /*
 This handles streaming the users own streams to the server.
@@ -17,7 +16,6 @@ type StreamInfo = {
   motionLastDetected?: number;
   lastFrame?: ImageData;
   deviceId: string;
-  lastPart?: Blob;
 };
 
 export const StreamingContext = createContext<{
@@ -208,32 +206,16 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             mimeType: "video/webm",
           });
           recorder.addEventListener("dataavailable", async (e) => {
-            if (streams[name].motion) {
-              if (streams[name].lastPart) {
-                /*const data = await ysFixWebmDuration(
-                  new Blob([streams[name].lastPart as Blob, e.data], {
-                    type: "video/webm",
-                  }),
-                  1000
-                );*/
-                await makeRequest({
-                  url: `${server}/api/video/chunk?name=${name}`,
-                  withCredentials: true,
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "video/webm",
-                  },
-                  data: new Blob([streams[name].lastPart as Blob, e.data], {
-                    type: "video/webm",
-                  }),
-                });
-                streams[name].lastPart = undefined;
-              } else {
-                streams[name].lastPart = e.data;
-              }
-            }
+            if (streams[name].motion)
+              await makeRequest({
+                url: `${server}/api/video/chunk?name=${name}`,
+                withCredentials: true,
+                method: "POST",
+                headers: { "Content-Type": "video/webm" },
+                data: e.data,
+              });
           });
-          recorder.start(500);
+          recorder.start(1000);
           setRecorders((r) => ({ ...r, [name]: recorder }));
         } else {
           console.log("Not present");
