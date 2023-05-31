@@ -47,17 +47,17 @@ function WatchStreamWithTrackbarModal({
 // Because WebM duration is fucked up when it comes from
 // MediaRecorder, fix-webm-duration needs to be used....
 // however fix-webm-duration does not work with larger than
-// 2gb files because of browser compatibility or something
-// like that... so if the video is larger than 2gb then the
-// video has to be split up into seperate 2gb downloads that
-// trigger automatically after the previous 2gb section has
+// 256mb files because of browser compatibility or something
+// like that... so if the video is larger than 256mb then the
+// video has to be split up into seperate 256mb downloads that
+// trigger automatically after the previous 256mb section has
 // completed, fix-webm-duration runs on each downloaded section
 // to repair the missing duration binary metadata... too dumb
 // to add this binary metadata to it myself
 function VideoDownloadButton({ name }: { name: string }) {
   const { server } = useAuth();
 
-  // index is the 2gb section (0 for recordings smaller than 2gb)
+  // index is the 256mb section (0 for recordings smaller than 256mb)
   const downloadSection = async (index: number, sectionSeconds: number) => {
     console.log("INDEX = ", index)
     const part = await makeRequest({
@@ -88,11 +88,10 @@ function VideoDownloadButton({ name }: { name: string }) {
     } = await makeRequest({
       url: `${server}/api/video/meta/${name}`,
     });
-    // figure out how many 2gb sections there are to the entire video and download them
+    // figure out how many 256mb sections there are to the entire video and download them
     const twoGb = 2 * 1024 * 1024 * 1024;
     const divSections = vidMeta.size / twoGb;
     const numSections = Math.floor(divSections);
-    console.log(divSections)
     const sectionDuration = Math.ceil(vidMeta.seconds / divSections);
     let remainingSeconds = vidMeta.seconds;
     for (let i = 0; i <= numSections; i++) {

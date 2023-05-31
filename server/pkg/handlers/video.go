@@ -19,11 +19,11 @@ import (
 	webrtcserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
 )
 
-// doesn't download the entire video stream for >2g, downloads a video stream 2gb section
-// since javascript fix-webm-duration wont work with larger than 2gb files....
-// the index of the 2gb section needs to be present in the URL param or it will default
-// to the first 2gbs of the video (index 0)
-var SectionSize int = 2 * 1024 * 1024 * 1024
+// doesn't download the entire video stream for >2g, downloads a video stream 256mb section
+// since javascript fix-webm-duration wont work with larger than 256mb files....
+// the index of the 256mb section needs to be present in the URL param or it will default
+// to the first 256mbs of the video (index 0)
+var SectionSize int = 256 * 1024 * 1024
 
 func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	name := ctx.Params("name")
@@ -33,7 +33,7 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	iRaw := ctx.Query("i", "0")
 	i, err := strconv.Atoi(iRaw)
 	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Invalid 2gbs section index query param")
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid 256mbs section index query param")
 	}
 
 	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
@@ -81,7 +81,7 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	var index, bytesDone int
 	var chunkBytes pgtype.Bytea
 
-	// db chunk index will start off depending on the 2gb section index from the query params
+	// db chunk index will start off depending on the 256mb section index from the query params
 	index = (i * (SectionSize)) / DBChunkSize
 
 	recursivelyWriteChunksToResponse := func() error {
@@ -115,7 +115,7 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 /*
 
 backup for API handler that downloads the entire stream video without using the
-2gb index query param
+256mb index query param
 
 func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	name := ctx.Params("name")
