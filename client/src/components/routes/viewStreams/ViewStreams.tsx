@@ -57,31 +57,30 @@ function WatchStreamWithTrackbarModal({
 function VideoDownloadButton({ name }: { name: string }) {
   const { server } = useAuth();
 
-  // index is the 256mb section (0 for recordings smaller than 256mb)
-  const downloadSection = async (index: number, sectionSeconds: number) => {
-    console.log("INDEX = ", index)
-    const part = await makeRequest({
-      url: `${server}/api/video/${name}?i=${index}`,
-      responseType: "arraybuffer",
-      withCredentials: true,
-    });
-    // fix the duration of the video section (the duration will be off
-    // for long videos that are still recording because the size retreived
-    // will be out of sync but whatever)
-    const blob = await ysDurationFix(
-      new Blob([part], { type: "video/webm" }),
-      sectionSeconds * 1000
-    );
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    // takes a string?
-    a.download = "true";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
   const downloadVideo = async () => {
+    // index is the 256mb section (0 for recordings smaller than 256mb)
+    const downloadSection = async (index: number, sectionSeconds: number) => {
+      console.log("INDEX = ", index);
+      const part = await makeRequest({
+        url: `${server}/api/video/${name}?i=${index}`,
+        responseType: "arraybuffer",
+        withCredentials: true,
+      });
+      // fix the duration of the video section (the duration will be off
+      // for long videos that are still recording because the size retreived
+      // will be out of sync but whatever)
+      const blob = await ysDurationFix(
+        new Blob([part], { type: "video/webm" }),
+        sectionSeconds * 1000
+      );
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      // takes a string?
+      a.download = "true";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
     const vidMeta: {
       size: number;
       seconds: number;
@@ -89,8 +88,8 @@ function VideoDownloadButton({ name }: { name: string }) {
       url: `${server}/api/video/meta/${name}`,
     });
     // figure out how many 256mb sections there are to the entire video and download them
-    const twoGb = 2 * 1024 * 1024 * 1024;
-    const divSections = vidMeta.size / twoGb;
+    const sectionSize = 256 * 1024 * 1024;
+    const divSections = vidMeta.size / sectionSize;
     const numSections = Math.floor(divSections);
     const sectionDuration = Math.ceil(vidMeta.seconds / divSections);
     let remainingSeconds = vidMeta.seconds;
