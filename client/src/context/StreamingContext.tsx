@@ -206,7 +206,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             mimeType: "video/webm",
           });
           recorder.addEventListener("dataavailable", async (e) => {
-            if (streams[name].motion)
+            //if (streams[name].motion)
               await makeRequest({
                 url: `${server}/api/video/chunk?name=${name}`,
                 withCredentials: true,

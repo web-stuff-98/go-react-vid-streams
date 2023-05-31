@@ -59,6 +59,7 @@ function VideoDownloadButton({ name }: { name: string }) {
 
   // index is the 2gb section (0 for recordings smaller than 2gb)
   const downloadSection = async (index: number, sectionSeconds: number) => {
+    console.log("INDEX = ", index)
     const part = await makeRequest({
       url: `${server}/api/video/${name}?i=${index}`,
       responseType: "arraybuffer",
@@ -91,9 +92,10 @@ function VideoDownloadButton({ name }: { name: string }) {
     const twoGb = 2 * 1024 * 1024 * 1024;
     const divSections = vidMeta.size / twoGb;
     const numSections = Math.floor(divSections);
+    console.log(divSections)
     const sectionDuration = Math.ceil(vidMeta.seconds / divSections);
     let remainingSeconds = vidMeta.seconds;
-    for (let i = 0; i < numSections; i++) {
+    for (let i = 0; i <= numSections; i++) {
       await downloadSection(
         i,
         i === numSections ? remainingSeconds : sectionDuration

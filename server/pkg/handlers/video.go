@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 
@@ -22,6 +23,8 @@ import (
 // since javascript fix-webm-duration wont work with larger than 2gb files....
 // the index of the 2gb section needs to be present in the URL param or it will default
 // to the first 2gbs of the video (index 0)
+var SectionSize int = 2 * 1024 * 1024 * 1024
+
 func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	name := ctx.Params("name")
 	if name == "" {
@@ -54,8 +57,95 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 		}
 	}
 
+	if i*SectionSize > size {
+		return fiber.NewError(fiber.StatusBadRequest, "Requested section index exceeds video size")
+	}
+
 	ctx.Response().Header.SetContentType("video/webm")
 	ctx.Response().Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v-%v-%v.webm"`, url.PathEscape(name), "section", iRaw))
+	if size <= SectionSize {
+		ctx.Response().Header.Add("Content-Length", strconv.Itoa(size))
+	} else {
+		if size-(i*SectionSize) < SectionSize {
+			ctx.Response().Header.Add("Content-Length", strconv.Itoa(size-(i*SectionSize)))
+		} else {
+			ctx.Response().Header.Add("Content-Length", strconv.Itoa(SectionSize))
+		}
+	}
+
+	DBChunkSize, err := strconv.Atoi(os.Getenv("VID_CHUNK_SIZE"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to parse VID_CHUNK_SIZE environment variable")
+	}
+
+	var index, bytesDone int
+	var chunkBytes pgtype.Bytea
+
+	// db chunk index will start off depending on the 2gb section index from the query params
+	index = (i * (SectionSize)) / DBChunkSize
+
+	recursivelyWriteChunksToResponse := func() error {
+	WRITE:
+		if err = conn.QueryRow(rctx, `
+			SELECT bytes FROM vid_chunks WHERE vid_id = $1 AND index = $2;
+		`, id, index).Scan(&chunkBytes); err != nil {
+			if err == pgx.ErrNoRows || bytesDone >= size || bytesDone >= (SectionSize) {
+				rctx.Done()
+				return nil
+			}
+			return err
+		} else {
+			index++
+			bytesDone += len(chunkBytes.Bytes)
+			if _, err = ctx.Write(chunkBytes.Bytes); err != nil {
+				return err
+			}
+		}
+		goto WRITE
+	}
+
+	if err = recursivelyWriteChunksToResponse(); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
+
+	rctx.Done()
+	return nil
+}
+
+/*
+
+backup for API handler that downloads the entire stream video without using the
+2gb index query param
+
+func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
+	name := ctx.Params("name")
+	if name == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "Bad request")
+	}
+
+	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
+	defer cancel()
+
+	conn, err := h.Pool.Acquire(rctx)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+	}
+	defer conn.Release()
+
+	var size int
+	var id string
+	if err = conn.QueryRow(rctx, `
+		SELECT size,id FROM vid_meta WHERE name = $1;
+	`, name).Scan(&size, &id); err != nil {
+		if err != pgx.ErrNoRows {
+			return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
+		} else {
+			return fiber.NewError(fiber.StatusNotFound, "Recording not found")
+		}
+	}
+
+	ctx.Response().Header.SetContentType("video/webm")
+	ctx.Response().Header.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v.webm"`, url.PathEscape(name),))
 
 	var index, bytesDone int
 	var chunkBytes pgtype.Bytea
@@ -86,6 +176,7 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	rctx.Done()
 	return nil
 }
+*/
 
 type OutVideoMeta struct {
 	Size    int `json:"size"`
