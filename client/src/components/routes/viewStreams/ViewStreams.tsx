@@ -14,6 +14,16 @@ import useSocket from "../../../context/SocketContext";
 import { isChangeData } from "../../../socketComms/InterpretEvent";
 import ysDurationFix from "fix-webm-duration";
 
+function toHoursAndMinutes(totalSeconds: number) {
+  const totalMinutes = Math.floor(totalSeconds / 60);
+
+  const seconds = totalSeconds % 60;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return { h: hours, m: minutes, s: seconds };
+}
+
 function WatchStreamWithTrackbarModal({
   name,
   closeButtonClicked,
@@ -73,7 +83,10 @@ function VideoDownloadButton({ name }: { name: string }) {
     );
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${name}-section-${index}-${sectionSeconds}s`;
+    const vidDur = toHoursAndMinutes(sectionSeconds);
+    a.download = `${name}-section-${index}-${vidDur.s + "s"}${
+      vidDur.m ? "-" + vidDur.m + "m" : ""
+    }${vidDur.h ? "-" + vidDur.h + "h" : ""}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
