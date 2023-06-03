@@ -121,7 +121,7 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
         // sections and compare the average pixel difference between
         // sections individually. If the pixel difference is above the
         // threshold in any of the sections then motion is detected.
-        const numSecs = 20;
+        const numSecs = 20; // number of sections widthwise and lengthwise
         const secsDiv = 1 / numSecs;
         if (streams[name].lastFrame) {
           // lfSecs = last frame sections
@@ -146,7 +146,9 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
           }
           // compare the sections
           for (let i = 0; i < lfSecs.length; i++) {
+            // last frame section
             const ls = lfSecs[i];
+            // current frame section
             const cs = cfSecs[i];
             const pDiffs: number[] = [];
             for (let i = 0; i < cs.length; i += 4) {
@@ -217,14 +219,14 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
             mimeType: "video/webm",
           });
           recorder.addEventListener("dataavailable", async (e) => {
-            //if (streams[name].motion)
-            await makeRequest({
-              url: `${server}/api/video/chunk?name=${name}`,
-              withCredentials: true,
-              method: "POST",
-              headers: { "Content-Type": "video/webm" },
-              data: e.data,
-            });
+            if (streams[name].motion)
+              await makeRequest({
+                url: `${server}/api/video/chunk?name=${name}`,
+                withCredentials: true,
+                method: "POST",
+                headers: { "Content-Type": "video/webm" },
+                data: e.data,
+              });
           });
           recorder.start(1000);
           setRecorders((r) => ({ ...r, [name]: recorder }));

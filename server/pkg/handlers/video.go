@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"strconv"
@@ -16,7 +15,7 @@ import (
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/helpers/authHelpers"
 	socketvalidation "github.com/web-stuff-98/go-react-vid-streams/pkg/socketValidation"
 	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
-	webrtcserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
+	webRTCserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
 )
 
 // doesn't download the entire video stream for >2g, downloads a video stream 256mb section
@@ -114,8 +113,8 @@ func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 
 /*
 
-backup for API handler that downloads the entire stream video without using the
-256mb index query param
+backup for API handler that sends the entire stream video without using the
+index query param to select which section to download
 
 func (h handler) DownloadStreamVideo(ctx *fiber.Ctx) error {
 	name := ctx.Params("name")
@@ -356,17 +355,13 @@ func (h handler) GetOldStreams(ctx *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
 	}
 
-	log.Println("Channel")
-
 	recvChan := make(chan []socketvalidation.StreamInfo, 1)
-	h.WebRTCServer.GetActiveStreams <- webrtcserver.GetActiveStreams{
+	h.WebRTCServer.GetActiveStreams <- webRTCserver.GetActiveStreams{
 		RecvChan: recvChan,
 	}
 	activeStreams := <-recvChan
 
 	close(recvChan)
-
-	log.Println("Channel through")
 
 	var outOldStreams []OutOldStream
 
@@ -429,7 +424,7 @@ func (h handler) DeleteStream(ctx *fiber.Ctx) error {
 	}
 	defer conn.Release()
 
-	h.WebRTCServer.DeleteStream <- webrtcserver.DeleteStream{
+	h.WebRTCServer.DeleteStream <- webRTCserver.DeleteStream{
 		Uid:        ctx.Locals("uid").(string),
 		StreamName: ctx.Params("name"),
 	}

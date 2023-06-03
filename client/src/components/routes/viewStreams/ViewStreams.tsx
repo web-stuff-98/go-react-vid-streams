@@ -3,8 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useStreaming } from "../../../context/StreamingContext";
 import { useStreams } from "../../../context/StreamsContext";
-import { FaDownload } from "react-icons/fa";
-import { AiOutlineClose } from "react-icons/ai";
+import { AiOutlineDownload } from "react-icons/ai";
 import { useStreamers } from "../../../context/StreamersContext";
 import { useSearchParams } from "react-router-dom";
 import ResMsg from "../../shared/ResMsg";
@@ -16,42 +15,11 @@ import ysDurationFix from "fix-webm-duration";
 
 function toHoursAndMinutes(totalSeconds: number) {
   const totalMinutes = Math.floor(totalSeconds / 60);
-
-  const seconds = totalSeconds % 60;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  return { h: hours, m: minutes, s: seconds };
-}
-
-function WatchStreamWithTrackbarModal({
-  name,
-  closeButtonClicked,
-}: {
-  name: string;
-  closeButtonClicked: Function;
-}) {
-  const { server } = useAuth();
-
-  return (
-    <div className="modal-container">
-      <div className={styles["watch-vid-modal-container"]}>
-        <video width="320" height="240" controls>
-          <source
-            src={`${server}/api/video/playback/${name}`}
-            type="video/webm"
-          />
-          Your browser does not support the video tag
-        </video>
-        <div
-          onClick={() => closeButtonClicked()}
-          className="modal-close-button"
-        >
-          <AiOutlineClose />
-        </div>
-      </div>
-    </div>
-  );
+  return {
+    h: Math.floor(totalMinutes / 60),
+    m: totalMinutes % 60,
+    s: totalSeconds % 60,
+  };
 }
 
 // Because WebM duration is fucked up when it comes from
@@ -115,10 +83,13 @@ function VideoDownloadButton({ name }: { name: string }) {
   };
 
   return (
-    <b aria-label="Download attachment" onClick={() => downloadVideo()}>
-      <FaDownload />
-      Download motion recording
-    </b>
+    <button
+      className={styles["download-button"]}
+      aria-label="Download attachment"
+      onClick={() => downloadVideo()}
+    >
+      <AiOutlineDownload />
+    </button>
   );
 }
 
@@ -150,11 +121,11 @@ const LiveStreamWindow = ({
   return (
     <li>
       {stream && <VideoStream stream={stream} />}
-      <div>
+      <div className={styles["name"]}>
         {name}
         {motion && <> - Motion detected</>}
-        <VideoDownloadButton name={name} />
       </div>
+      <VideoDownloadButton name={name} />
       {
         <span className={styles["live-indicator"]}>
           Active stream from {getStreamerName(uid)}
@@ -164,14 +135,7 @@ const LiveStreamWindow = ({
   );
 };
 
-const OldStreamVideo = ({
-  name,
-  uid,
-}: {
-  name: string;
-  uid: string;
-  watchClicked: (name: string) => void;
-}) => {
+const OldStreamVideo = ({ name, uid }: { name: string; uid: string }) => {
   const { server } = useAuth();
   const { getStreamerName } = useStreamers();
 
@@ -184,15 +148,11 @@ const OldStreamVideo = ({
         />
         Your browser does not support the video tag
       </video>
-      <div>
-        {name}
-        <VideoDownloadButton name={name} />
-      </div>
-      {
-        <span className={styles["inactive-indicator"]}>
-          Inactive stream from {getStreamerName(uid)}
-        </span>
-      }
+      <div className={styles["name"]}>{name}</div>
+      <VideoDownloadButton name={name} />
+      <span className={styles["inactive-indicator"]}>
+        Inactive stream from {getStreamerName(uid)}
+      </span>
     </li>
   );
 };
@@ -203,35 +163,30 @@ function LiveStreams() {
   const { uid } = useAuth();
 
   return (
-    <>
+    <ul className={styles["streams-list"]}>
       {peers &&
-        peers.length > 0 &&
-        JSON.stringify(peers.map((p) => ({ ...p, peer: undefined })))}
-      <ul className={styles["streams-list"]}>
-        {peers &&
-          Array.isArray(peers) &&
-          peers.map((p) =>
-            p.streams?.map((s) => (
-              <LiveStreamWindow
-                motion={s.motion}
-                key={s.name}
-                name={s.name}
-                stream={s.stream}
-                uid={p.streamerId}
-              />
-            ))
-          )}
-        {Object.keys(streams).map((name) => (
-          <LiveStreamWindow
-            uid={uid}
-            motion={streams[name].motion}
-            key={name}
-            name={name}
-            stream={streams[name].stream}
-          />
-        ))}
-      </ul>
-    </>
+        Array.isArray(peers) &&
+        peers.map((p) =>
+          p.streams?.map((s) => (
+            <LiveStreamWindow
+              motion={s.motion}
+              key={s.name}
+              name={s.name}
+              stream={s.stream}
+              uid={p.streamerId}
+            />
+          ))
+        )}
+      {Object.keys(streams).map((name) => (
+        <LiveStreamWindow
+          uid={uid}
+          motion={streams[name].motion}
+          key={name}
+          name={name}
+          stream={streams[name].stream}
+        />
+      ))}
+    </ul>
   );
 }
 
@@ -244,11 +199,6 @@ function OldStreams() {
   const [streams, setStreams] = useState<
     { name: string; streamer_id: string }[]
   >([]);
-  const [watchVideoStreamName, setWatchVideoStreamName] = useState("");
-
-  const watchClicked = (name: string) => {
-    setWatchVideoStreamName(name);
-  };
 
   const getOldStreams = async () => {
     try {
@@ -279,7 +229,6 @@ function OldStreams() {
         // @ts-ignore
         const name = msg.data.data["name"] as string;
         setStreams((s) => [...s.filter((s) => s.name !== name)]);
-        if (name === watchVideoStreamName) setWatchVideoStreamName("");
       }
     }
   };
@@ -297,20 +246,9 @@ function OldStreams() {
         {streams &&
           Array.isArray(streams) &&
           streams.map((s) => (
-            <OldStreamVideo
-              name={s.name}
-              uid={s.streamer_id}
-              watchClicked={(name: string) => watchClicked(name)}
-            />
+            <OldStreamVideo name={s.name} uid={s.streamer_id} />
           ))}
-        {watchVideoStreamName && (
-          <WatchStreamWithTrackbarModal
-            closeButtonClicked={() => setWatchVideoStreamName("")}
-            name={watchVideoStreamName}
-          />
-        )}
       </ul>
-      {watchVideoStreamName && <div className="modal-backdrop" />}
       <ResMsg msg={resMsg} />
     </>
   );

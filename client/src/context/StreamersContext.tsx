@@ -48,8 +48,9 @@ export const StreamersProvider = ({ children }: { children: ReactNode }) => {
         if (msg.data.method === "INSERT") {
           setStreamers((s) => {
             const newStreamers = s;
+            console.log(msg.data.data);
             // @ts-ignore
-            newStreamers[msg.data.data.id] = msg.data.data["name"];
+            newStreamers[msg.data.data.name] = msg.data.data["name"];
             return { ...newStreamers };
           });
         }

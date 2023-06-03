@@ -39,7 +39,7 @@ type WebRTCMotionUpdate struct {
 
 // TYPE: CHANGE
 type ChangeData struct {
-	Entity string `json:"entity"`
-	Method string `json:"method"`
-	Data   map[string]interface{}
+	Entity string                 `json:"entity"`
+	Method string                 `json:"method"`
+	Data   map[string]interface{} `json:"data"`
 }
