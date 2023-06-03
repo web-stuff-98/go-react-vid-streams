@@ -22,6 +22,9 @@ function toHoursAndMinutes(totalSeconds: number) {
   };
 }
 
+const getVideoMaxWidth = (numStreams: number) =>
+  `${numStreams === 1 ? 100 : 100 / numStreams}%`;
+
 // Because WebM duration is fucked up when it comes from
 // MediaRecorder, fix-webm-duration needs to be used....
 // however fix-webm-duration does not work with larger than
@@ -108,7 +111,7 @@ function VideoButtons({ name }: { name: string }) {
   );
 }
 
-function VideoStream({ stream }: { stream: MediaStream }) {
+function LiveVideoStream({ stream }: { stream: MediaStream }) {
   const vidRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (vidRef.current) vidRef.current.srcObject = stream;
@@ -125,17 +128,19 @@ const LiveStreamWindow = ({
   stream,
   motion,
   uid,
+  streamsCount,
 }: {
   name: string;
   stream?: MediaStream;
   motion?: boolean;
   uid: string;
+  streamsCount: number;
 }) => {
   const { getStreamerName } = useStreamers();
 
   return (
-    <li>
-      {stream && <VideoStream stream={stream} />}
+    <li style={{ width: getVideoMaxWidth(streamsCount) }}>
+      {stream && <LiveVideoStream stream={stream} />}
       <div className={styles["name"]}>
         {name}
         {motion && <> - Motion detected</>}
@@ -150,13 +155,21 @@ const LiveStreamWindow = ({
   );
 };
 
-const OldStreamVideo = ({ name, uid }: { name: string; uid: string }) => {
+const OldStreamVideo = ({
+  name,
+  uid,
+  streamsCount,
+}: {
+  name: string;
+  uid: string;
+  streamsCount: number;
+}) => {
   const { server } = useAuth();
   const { getStreamerName } = useStreamers();
 
   return (
-    <li>
-      <video width="320" height="240" controls>
+    <li style={{ width: getVideoMaxWidth(streamsCount) }}>
+      <video width="auto" height="auto" controls>
         <source
           src={`${server}/api/video/playback/${name}`}
           type="video/webm"
@@ -184,6 +197,10 @@ function LiveStreams() {
         peers.map((p) =>
           p.streams?.map((s) => (
             <LiveStreamWindow
+              streamsCount={
+                Object.keys(streams).length +
+                peers.reduce((acc, val) => acc + (val.streams || []).length, 0)
+              }
               motion={s.motion}
               key={s.name}
               name={s.name}
@@ -194,6 +211,10 @@ function LiveStreams() {
         )}
       {Object.keys(streams).map((name) => (
         <LiveStreamWindow
+          streamsCount={
+            Object.keys(streams).length +
+            peers.reduce((acc, val) => acc + (val.streams || []).length, 0)
+          }
           uid={uid}
           motion={streams[name].motion}
           key={name}
@@ -263,7 +284,11 @@ function OldStreams() {
         {streams &&
           Array.isArray(streams) &&
           streams.map((s) => (
-            <OldStreamVideo name={s.name} uid={s.streamer_id} />
+            <OldStreamVideo
+              streamsCount={streams.length}
+              name={s.name}
+              uid={s.streamer_id}
+            />
           ))}
       </ul>
       <ResMsg msg={resMsg} />

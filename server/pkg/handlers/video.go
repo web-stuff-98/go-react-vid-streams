@@ -413,12 +413,13 @@ func (h handler) GetOldStreams(ctx *fiber.Ctx) error {
 }
 
 func (h handler) DeleteStream(ctx *fiber.Ctx) error {
-	if ctx.Locals("uid").(string) == "" {
-		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
-	}
-
 	rctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
 	defer cancel()
+
+	uid, _, err := authHelpers.GetUidAndSid(h.RedisClient, ctx, rctx, h.Pool)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
+	}
 
 	conn, err := h.Pool.Acquire(rctx)
 	if err != nil {
@@ -427,7 +428,7 @@ func (h handler) DeleteStream(ctx *fiber.Ctx) error {
 	defer conn.Release()
 
 	h.WebRTCServer.DeleteStream <- webRTCserver.DeleteStream{
-		Uid:        ctx.Locals("uid").(string),
+		Uid:        uid,
 		StreamName: ctx.Params("name"),
 	}
 

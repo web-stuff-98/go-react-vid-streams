@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/websocket/v2"
@@ -13,8 +12,6 @@ import (
 
 func handleSocketEvent(data map[string]interface{}, event string, h handler, uid string, c *websocket.Conn) error {
 	var err error
-
-	log.Printf("Event received:%v", event)
 
 	switch event {
 	case "WEBRTC_JOIN":
