@@ -206,14 +206,12 @@ export const StreamsProvider = ({ children }: { children: ReactNode }) => {
     if (isWebRTCMotionUpdate(msg)) {
       const i = peers.findIndex((p) => p.streamerId === msg.data.streamer_id);
       if (i !== -1) {
-        console.log("found match");
         setPeers((p) => {
           const newPeers = p;
           const si = (newPeers[i].streams || []).findIndex(
             (s) => s.mediaStreamId === msg.data.media_stream_id
           );
           if (si === -1) return p;
-          console.log("found stream match");
           newPeers[i].streams![si].motion = msg.data.motion;
           return [...newPeers];
         });

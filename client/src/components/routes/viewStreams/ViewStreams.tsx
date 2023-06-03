@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useStreaming } from "../../../context/StreamingContext";
 import { useStreams } from "../../../context/StreamsContext";
-import { AiOutlineDownload } from "react-icons/ai";
+import { AiOutlineDownload, AiFillDelete } from "react-icons/ai";
 import { useStreamers } from "../../../context/StreamersContext";
 import { useSearchParams } from "react-router-dom";
 import ResMsg from "../../shared/ResMsg";
@@ -32,8 +32,9 @@ function toHoursAndMinutes(totalSeconds: number) {
 // completed, fix-webm-duration runs on each downloaded section
 // to repair the missing duration binary metadata... too dumb
 // to add this binary metadata to it myself
-function VideoDownloadButton({ name }: { name: string }) {
+function VideoButtons({ name }: { name: string }) {
   const { server } = useAuth();
+  const { removeStream } = useStreaming();
 
   // index is the 256mb section (0 for recordings smaller than 256mb)
   const downloadSection = async (index: number, sectionSeconds: number) => {
@@ -82,14 +83,28 @@ function VideoDownloadButton({ name }: { name: string }) {
     }
   };
 
+  const deleteStream = async () => {
+    await makeRequest({
+      url: `${server}/api/streams/${name}`,
+      method: "DELETE",
+      withCredentials: true,
+    });
+    removeStream(name);
+  };
+
   return (
-    <button
-      className={styles["download-button"]}
-      aria-label="Download attachment"
-      onClick={() => downloadVideo()}
-    >
-      <AiOutlineDownload />
-    </button>
+    <div className={styles["buttons"]}>
+      <button
+        className={styles["delete-button"]}
+        aria-label="Delete stream video"
+        onClick={() => deleteStream()}
+      >
+        <AiFillDelete />
+      </button>
+      <button aria-label="Download attachment" onClick={() => downloadVideo()}>
+        <AiOutlineDownload />
+      </button>
+    </div>
   );
 }
 
@@ -125,7 +140,7 @@ const LiveStreamWindow = ({
         {name}
         {motion && <> - Motion detected</>}
       </div>
-      <VideoDownloadButton name={name} />
+      <VideoButtons name={name} />
       {
         <span className={styles["live-indicator"]}>
           Active stream from {getStreamerName(uid)}
@@ -149,7 +164,7 @@ const OldStreamVideo = ({ name, uid }: { name: string; uid: string }) => {
         Your browser does not support the video tag
       </video>
       <div className={styles["name"]}>{name}</div>
-      <VideoDownloadButton name={name} />
+      <VideoButtons name={name} />
       <span className={styles["inactive-indicator"]}>
         Inactive stream from {getStreamerName(uid)}
       </span>
@@ -226,9 +241,11 @@ function OldStreams() {
     if (!msg) return;
     if (isChangeData(msg)) {
       if (msg.data.entity === "STREAM") {
-        // @ts-ignore
-        const name = msg.data.data["name"] as string;
-        setStreams((s) => [...s.filter((s) => s.name !== name)]);
+        if (msg.data.method === "DELETE") {
+          // @ts-ignore
+          const name = msg.data.data["name"] as string;
+          setStreams((s) => [...s.filter((s) => s.name !== name)]);
+        }
       }
     }
   };

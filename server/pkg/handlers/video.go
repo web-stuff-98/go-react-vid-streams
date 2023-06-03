@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v5"
 	"github.com/web-stuff-98/go-react-vid-streams/pkg/helpers/authHelpers"
+	socketMessages "github.com/web-stuff-98/go-react-vid-streams/pkg/socketMessages"
+	socketServer "github.com/web-stuff-98/go-react-vid-streams/pkg/socketServer"
 	socketvalidation "github.com/web-stuff-98/go-react-vid-streams/pkg/socketValidation"
 	videoServer "github.com/web-stuff-98/go-react-vid-streams/pkg/videoServer"
 	webRTCserver "github.com/web-stuff-98/go-react-vid-streams/pkg/webRTCserver"
@@ -429,17 +431,32 @@ func (h handler) DeleteStream(ctx *fiber.Ctx) error {
 		StreamName: ctx.Params("name"),
 	}
 
+	var id string
+
 	if deleteStmt, err := conn.Conn().Prepare(rctx, "delete_stream_delete_stmt", `
-		DELETE FROM vid_meta WHERE LOWER(name) = LOWER($1);
+		DELETE FROM vid_meta WHERE LOWER(name) = LOWER($1) RETURNING id;
 	`); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 	} else {
-		if _, err = conn.Conn().Exec(rctx, deleteStmt.Name, ctx.Params("name")); err != nil {
+		if err = conn.Conn().QueryRow(rctx, deleteStmt.Name, ctx.Params("name")).Scan(&id); err != nil {
 			if err != pgx.ErrNoRows {
 				return fiber.NewError(fiber.StatusInternalServerError, "Internal error")
 			}
 			return fiber.NewError(fiber.StatusNotFound, "Not found")
 		}
+	}
+
+	outData := make(map[string]interface{})
+	outData["name"] = ctx.Params("name")
+	outData["id"] = id
+
+	h.SocketServer.SendDataToAll <- socketServer.SendDataToAll{
+		Data: socketMessages.ChangeData{
+			Entity: "STREAM",
+			Method: "DELETE",
+			Data:   outData,
+		},
+		EventName: "CHANGE",
 	}
 
 	return nil

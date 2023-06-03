@@ -3,6 +3,7 @@ import type { ReactNode, MutableRefObject } from "react";
 import { useAuth } from "./AuthContext";
 import { makeRequest } from "../services/makeRequest";
 import useSocket from "./SocketContext";
+import { isChangeData } from "../socketComms/InterpretEvent";
 
 /*
 This handles streaming the users own streams to the server.
@@ -32,7 +33,7 @@ export const StreamingContext = createContext<{
 
 export const StreamingProvider = ({ children }: { children: ReactNode }) => {
   const { server } = useAuth();
-  const { sendIfPossible } = useSocket();
+  const { sendIfPossible, socket } = useSocket();
 
   const [streams, setStreams] = useState<Record<string, StreamInfo>>({});
   const [recorders, setRecorders] = useState<Record<string, MediaRecorder>>({});
@@ -245,6 +246,19 @@ export const StreamingProvider = ({ children }: { children: ReactNode }) => {
       });
     };
   }, []);
+
+  const handleMessage = (e: MessageEvent) => {
+    const msg = JSON.parse(e.data);
+    if (!msg) return;
+    if (isChangeData(msg))
+      if (msg.data.entity === "STREAM")
+        if (msg.data.method === "DELETE") rejoinWebRTC();
+  };
+
+  useEffect(() => {
+    socket?.addEventListener("message", handleMessage);
+    return () => socket?.removeEventListener("message", handleMessage);
+  }, [socket]);
 
   return (
     <StreamingContext.Provider
