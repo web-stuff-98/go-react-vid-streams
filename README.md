@@ -1,12 +1,12 @@
 # go-react-vid-streams
 
-## This is a mostly finished "motion detection security camera streaming app" where you connect different devices to a password protected server and record video streams, and also watch them from the home page. These are the only features that I have implemented at the moment (watching streams through WebRTC, recording streams as chunks onto postgres when motion is detected, using cookies and JWTs to authenticate logins). I'm making it just because I haven't used React in a while and I wanted to write some API handlers for chunked video streams
+## This is a mostly finished "motion detection security camera streaming app" where you connect different devices to a password protected server and record video streams, and also watch them from the home page. These are the only features that I have implemented because I can't be asked to finish this project because I have no idea how to add trackbar data to video files properly
 
 # Problems:
 
 I am using fix-webm-duration to add the duration metadata to the video after downloading it because I have no idea how to add the correct EBML metadata to a WebM to get the trackbar to work myself
 
-#### Todos:
+#### Todos (which I will never do):
 
 - Replace the crappy average pixel difference motion detection with OpenCV or something like that
 - Motion sensitivity slider for individual streams
